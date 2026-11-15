@@ -69,8 +69,8 @@
 
   var Demo = {
     hoy: function () {
-      var d = new Date();
-      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); }
+      catch (e) { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
     },
     datos: function () {
       var g = leer(LS.demoDatos);
@@ -280,6 +280,10 @@
     else if (r.libre < 0) sub = 'La tarjeta debe <b>' + cdPesos(-r.libre) + '</b> más de lo que tienes en débito.';
     else {
       sub = 'En débito <b>' + pesosSinCentavos(r.saldo_debito) + '</b>' + (r.deuda_tarjeta > 0 ? ' menos <b>' + pesosSinCentavos(r.deuda_tarjeta) + '</b> de la tarjeta.' : ', la tarjeta no debe nada.');
+      // Lo gastado hoy, con el día de México (igual que la hoja), no el del reloj del teléfono.
+      var dHoy = hoyMexico(), comprasHoy = estado.movimientos.filter(function (m) { return m.tipo === 'compra' && m.fecha === dHoy; });
+      var gastoHoy = cdRedondear(comprasHoy.reduce(function (t, m) { return t + (Number(m.monto) || 0); }, 0));
+      sub += '<span class="heroe-dia">' + (comprasHoy.length ? 'Hoy llevas <b>' + cdPesos(gastoHoy) + '</b> gastados' + (comprasHoy.length > 1 ? ' en ' + comprasHoy.length + ' compras.' : '.') : 'Hoy no has anotado compras.') + '</span>';
     }
     $('#libre-sub').innerHTML = sub;
 
@@ -306,6 +310,12 @@
     if (dias < 3) return null;
     var total = movs.reduce(function (t, m) { return m.tipo === 'compra' && m.fecha >= desde && m.fecha <= r.hoy ? t + (Number(m.monto) || 0) : t; }, 0);
     return total > 0 ? { diario: total / dias, dias: dias } : null;
+  }
+
+  /** 'AAAA-MM-DD' de hoy en la hora de México (la misma zona que usa la hoja de Google). */
+  function hoyMexico() {
+    try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); }
+    catch (e) { return estado.resumen.hoy; }
   }
 
   function pintarAvisos(r, vacio) {
