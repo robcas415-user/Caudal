@@ -299,6 +299,7 @@
     r.avisos.forEach(function (a) {
       // La tarjeta Libre y la de crédito ya dicen esto; aquí solo lo urgente.
       if (a.clave === 'libre_bajo' || (a.clave === 'pago_pendiente' && a.nivel === 'info')) return;
+      if (a.clave === 'libre_negativo') a = { nivel: a.nivel, clave: a.clave, texto: 'La tarjeta debe ' + cdPesos(-r.libre) + ' más de lo que tienes en débito. Mejor no usarla hasta recibir más dinero.' };
       var icono = a.nivel === 'info' ? (a.clave === 'tope_cashback' ? 'sparkle' : 'calendar') : 'warn';
       ul.appendChild(h('li', { class: 'aviso aviso-' + a.nivel, html: '<span class="aviso-ico">' + ico(icono) + '</span><span>' + esc(a.texto) + '</span>' }));
     });
@@ -314,7 +315,7 @@
     caja.appendChild(h('p', { text: 'Tres pasos y Caudal sabrá cuánto tienes libre.' }));
     [
       { t: 'Anota lo que tienes en débito', s: 'El saldo de hoy en DiDi débito', fn: function () { abrirForm('otro', null, { clase: 'ajuste' }); } },
-      { t: '¿La tarjeta ya debe algo?', s: 'Anota la deuda que ya traía', fn: function () { abrirForm('otro', null, { clase: 'deuda' }); } },
+      { t: '¿La tarjeta ya debe algo?', s: 'Escribe el saldo total que ves en DiDi', fn: function () { abrirForm('otro', null, { clase: 'deuda' }); } },
       { t: 'Revisa los datos de tu tarjeta', s: 'Día de corte, día límite y cashback', fn: function () { mostrarVista('ajustes'); } }
     ].forEach(function (p, i) {
       caja.appendChild(h('button', { class: 'paso', type: 'button', onclick: p.fn, html:
@@ -512,7 +513,7 @@
     if (m.tipo === 'deposito') return m.descripcion || 'Dinero recibido';
     if (m.tipo === 'pago_tarjeta') return 'Pago a la tarjeta';
     if (m.tipo === 'cashback') return 'Cashback';
-    return m.descripcion || (m.medio === 'credito' ? 'Deuda anterior' : 'Ajuste de saldo');
+    return m.descripcion || (m.medio === 'credito' ? 'Cuadre de tarjeta' : 'Cuadre de débito');
   }
   function detalleMov(m, conFecha) {
     var d;
@@ -520,7 +521,7 @@
     else if (m.tipo === 'deposito') d = 'A tu débito';
     else if (m.tipo === 'pago_tarjeta') d = 'De débito a la tarjeta';
     else if (m.tipo === 'cashback') d = 'Regreso de la tarjeta';
-    else d = m.medio === 'credito' ? 'Deuda de la tarjeta' : 'Débito';
+    else d = (Number(m.monto) < 0 ? 'Resta · ' : 'Suma · ') + (m.medio === 'credito' ? 'deuda de la tarjeta' : 'débito');
     return conFecha ? diaCorto(m.fecha) + ' · ' + d : d;
   }
   function diaCorto(f) {
@@ -572,10 +573,9 @@
 
   var SECCIONES_CFG = [
     { t: 'Tú', c: ['nombre'] },
-    { t: 'Tarjeta de crédito', c: ['dia_corte', 'dia_limite', 'dias_para_pagar', 'limite_credito'], pie: 'Los encuentras en el estado de cuenta de DiDi.' },
+    { t: 'Tarjeta de crédito', c: ['dia_corte', 'dia_limite'], pie: 'Los encuentras en el estado de cuenta de DiDi.' },
     { t: 'Cashback', c: ['cashback_pct', 'cashback_tope', 'cashback_periodo', 'cashback_destino', 'categorias_cashback'] },
     { t: 'Compras', c: ['categorias', 'categoria_default'] },
-    { t: 'Dinero que recibes', c: ['monto_periodo'] },
     { t: 'Recordatorios', c: ['aviso_libre_bajo', 'avisos_dias_antes', 'avisos_correo'], pie: 'Los correos salen cada mañana a las 8 solo si hay algo que recordar.' },
     { t: 'Avanzado', c: ['url_app'] }
   ];
@@ -712,6 +712,12 @@
     return cont;
   }
 
+  function diferenciaCuadre() {
+    var r = estado.resumen, v = valorDe('clase'), n = teclado.txt === '' ? NaN : Number(teclado.txt);
+    var actual = v === 'debito' ? r.saldo_debito : r.deuda_tarjeta;
+    return isNaN(n) ? NaN : cdRedondear(n - actual);
+  }
+
   function seccionMonto() {
     return h('div', { class: 'hoja-seccion' }, [
       h('div', { class: 'monto-vista', id: 'monto-vista', role: 'status' }),
@@ -799,6 +805,14 @@
       txt = n > 0 ? 'Tendrías ' + cdPesos(r.libre + n - previo) + ' libres' : 'Lo que llegó a tu DiDi débito';
     } else if (tipo === 'pago_tarjeta') {
       txt = n > 0 ? (r.tarjeta.por_pagar - n + previo > 0 ? 'Quedarían ' + cdPesos(r.tarjeta.por_pagar - n + previo) + ' por pagar' : 'Quedas al corriente') : 'Pagar la tarjeta no cambia tu Libre';
+    } else if (formActual.cuadrar && valorDe('clase') !== 'cashback') {
+      var esDeb = valorDe('clase') === 'debito', dif = diferenciaCuadre();
+      var enC = $('#f-encorte') && $('#f-encorte').closest('.fila-switch');
+      if (enC) enC.hidden = esDeb || !(dif > 0);
+      if (isNaN(dif)) txt = 'Según Caudal: ' + cdPesos(esDeb ? estado.resumen.saldo_debito : estado.resumen.deuda_tarjeta);
+      else if (!dif) txt = 'Ya cuadra. No hay nada que corregir.';
+      else if (esDeb) txt = dif > 0 ? 'Faltaban ' + cdPesos(dif) + ' en Caudal: tu Libre sube' : 'Sobraban ' + cdPesos(-dif) + ' en Caudal: tu Libre baja. ¿Faltó anotar una compra?';
+      else txt = dif > 0 ? 'La tarjeta debe ' + cdPesos(dif) + ' más: tu Libre baja' : 'La tarjeta debe ' + cdPesos(-dif) + ' menos: tu Libre sube';
     } else {
       var clase = valorDe('clase');
       txt = clase === 'cashback' ? 'Anótalo cuando DiDi te deposite el cashback'
@@ -833,7 +847,7 @@
       titulo = mov ? 'Editar dinero recibido' : 'Recibí dinero';
       cuerpo.appendChild(seccionMonto());
       cuerpo.appendChild(detalles('Nota y fecha', [filaDetalle('descripcion', 'Nota', mov && mov.descripcion, 'Ej. Dinero de la semana'), filaDetalle('fecha', 'Fecha', (mov && mov.fecha) || r.hoy, '', 'date')], !!mov));
-      monto = mov ? mov.monto : cfg.monto_periodo;
+      monto = mov ? mov.monto : '';
     } else if (tipo === 'pago_tarjeta') {
       titulo = mov ? 'Editar pago' : 'Pagué la tarjeta';
       cuerpo.appendChild(seccionMonto());
@@ -846,19 +860,43 @@
       }
       cuerpo.appendChild(detalles('Fecha', [filaDetalle('fecha', 'Fecha', (mov && mov.fecha) || r.hoy, '', 'date')], !!mov));
       monto = mov ? mov.monto : r.tarjeta.por_pagar;
+    } else if (!mov) {
+      // Cuadrar: se escribe lo que dice DiDi y Caudal anota solo la diferencia.
+      titulo = 'Cuadrar con DiDi';
+      formActual.cuadrar = true;
+      var selC = pre.clase === 'deuda' ? 'tarjeta' : pre.clase === 'cashback' ? 'cashback' : 'debito';
+      var pregunta = h('p', { class: 'hoja-pregunta', id: 'f-pregunta' });
+      var limC = r.tarjeta.fecha_limite, vencC = cdDiasEntre(r.hoy, limC) < 0;
+      var enCorteC = h('label', { class: 'fila-switch', html:
+        '<span>La diferencia ya viene en el estado de cuenta<small>' + (vencC ? 'Ese pago venció el ' : 'Se suma al pago del ') + esc(fecha(limC, false)) + '</small></span>' +
+        '<span class="switch"><input type="checkbox" id="f-encorte"><i></i></span>' });
+      enCorteC.querySelector('input').addEventListener('change', actualizarNota);
+      var ponerClase = function (v) {
+        pregunta.textContent = v === 'debito' ? '¿Cuánto ves hoy en tu DiDi débito?' : v === 'tarjeta' ? '¿Cuánto dice DiDi que debe tu tarjeta?' : '¿Cuánto cashback te dio DiDi?';
+        enCorteC.hidden = true;
+        teclado.txt = '';
+        pintarMonto();
+      };
+      cuerpo.appendChild(h('div', { class: 'hoja-seccion' }, [segmentado('f-clase', [{ v: 'debito', t: 'Débito' }, { v: 'tarjeta', t: 'Tarjeta' }, { v: 'cashback', t: 'Cashback' }], selC, ponerClase)]));
+      cuerpo.appendChild(pregunta);
+      cuerpo.appendChild(seccionMonto());
+      cuerpo.appendChild(detalles('Nota y fecha', [filaDetalle('descripcion', 'Nota', '', 'Opcional'), filaDetalle('fecha', 'Fecha', r.hoy, '', 'date'), enCorteC], false));
+      enCorteC.hidden = true;
+      pregunta.textContent = selC === 'debito' ? '¿Cuánto ves hoy en tu DiDi débito?' : selC === 'tarjeta' ? '¿Cuánto dice DiDi que debe tu tarjeta?' : '¿Cuánto cashback te dio DiDi?';
+      monto = '';
     } else {
-      titulo = mov ? 'Editar movimiento' : 'Otro movimiento';
+      titulo = 'Editar movimiento';
       var sel = pre.clase || (mov ? (mov.tipo === 'cashback' ? 'cashback' : (mov.medio === 'credito' ? 'deuda' : 'ajuste')) : 'cashback');
       var signo = h('div', { class: 'hoja-seccion', id: 'f-signo-caja' }, [segmentado('f-signo', [{ v: 'suma', t: 'Agregar' }, { v: 'resta', t: 'Quitar' }],
         mov && Number(mov.monto) < 0 ? 'resta' : 'suma', function (v) { teclado.negativo = v === 'resta'; pintarMonto(); })]);
       cuerpo.appendChild(h('div', { class: 'hoja-seccion' }, [segmentado('f-clase', [{ v: 'cashback', t: 'Cashback' }, { v: 'ajuste', t: 'Saldo' }, { v: 'deuda', t: 'Deuda' }], sel, function (v) {
-        signo.hidden = v !== 'ajuste';
+        signo.hidden = v === 'cashback';
         enCorte.hidden = v !== 'deuda';
-        teclado.negativo = v === 'ajuste' && valorDe('signo') === 'resta';
+        teclado.negativo = v !== 'cashback' && valorDe('signo') === 'resta';
         pintarMonto();
       })]));
       cuerpo.appendChild(signo);
-      signo.hidden = sel !== 'ajuste';
+      signo.hidden = sel === 'cashback';
       var limHoy = r.tarjeta.fecha_limite, vencida = cdDiasEntre(r.hoy, limHoy) < 0;
       var enCorte = h('label', { class: 'fila-switch', id: 'f-encorte-caja', html:
         '<span>Ya viene en el estado de cuenta<small>' + (vencida ? 'Su pago venció el ' : 'Hay que pagarlo antes del ') + esc(fecha(limHoy, false)) + '</small></span>' +
@@ -866,11 +904,10 @@
       enCorte.hidden = sel !== 'deuda';
       enCorte.querySelector('input').addEventListener('change', actualizarNota);
       cuerpo.appendChild(enCorte);
-      teclado.negativo = sel === 'ajuste' && mov && Number(mov.monto) < 0;
+      teclado.negativo = sel !== 'cashback' && mov && Number(mov.monto) < 0;
       cuerpo.appendChild(seccionMonto());
       cuerpo.appendChild(detalles('Nota y fecha', [filaDetalle('descripcion', 'Nota', mov && mov.descripcion, sel === 'ajuste' ? 'Ej. Saldo inicial' : ''), filaDetalle('fecha', 'Fecha', (mov && mov.fecha) || r.hoy, '', 'date')], !!mov));
       monto = mov ? mov.monto : '';
-      if (pre.clase) titulo = pre.clase === 'ajuste' ? 'Saldo en débito' : pre.clase === 'deuda' ? 'Deuda de la tarjeta' : titulo;
     }
     cuerpo.appendChild(crearTeclado());
 
@@ -931,15 +968,27 @@
     if (tipo === 'compra') { mov.tipo = 'compra'; mov.medio = valorDe('medio'); mov.categoria = valorDe('categoria'); }
     else if (tipo === 'deposito') { mov.tipo = 'deposito'; mov.nuevo_periodo = false; }
     else if (tipo === 'pago_tarjeta') { mov.tipo = 'pago_tarjeta'; }
+    else if (formActual.cuadrar && valorDe('clase') !== 'cashback') {
+      var dif = diferenciaCuadre(), esDebito = valorDe('clase') === 'debito';
+      if (isNaN(dif)) { sacudir(); mostrarErrorForm('Escribe lo que ves en DiDi.'); return; }
+      if (!dif) { cerrarForm(); avisar('Ya cuadra con DiDi', 3500); return; }
+      mov = { tipo: 'ajuste', medio: esDebito ? 'debito' : 'credito', monto: (dif < 0 ? '-' : '') + Math.abs(dif).toFixed(2), fecha: valorDe('fecha'),
+        descripcion: valorDe('descripcion') || (esDebito ? 'Cuadre de débito' : 'Cuadre de tarjeta') };
+      if (!esDebito && dif > 0 && $('#f-encorte') && $('#f-encorte').checked && mov.fecha > estado.resumen.tarjeta.ultimo_corte) mov.fecha = estado.resumen.tarjeta.ultimo_corte;
+      return guardarMov(mov, Math.abs(dif));
+    }
     else {
       var clase = valorDe('clase');
       mov.tipo = clase === 'cashback' ? 'cashback' : 'ajuste';
       mov.medio = clase === 'deuda' ? 'credito' : 'debito';
       // Deuda que ya está en el estado de cuenta: se fecha en el corte para que cuente en "Toca pagar".
       if (clase === 'deuda' && $('#f-encorte') && $('#f-encorte').checked && mov.fecha > estado.resumen.tarjeta.ultimo_corte) mov.fecha = estado.resumen.tarjeta.ultimo_corte;
-      if (clase === 'ajuste' && valorDe('signo') === 'resta') mov.monto = '-' + mov.monto;
+      if (clase !== 'cashback' && valorDe('signo') === 'resta') mov.monto = '-' + mov.monto;
     }
-    var n = cdLeerMonto(teclado.txt);
+    return guardarMov(mov, cdLeerMonto(teclado.txt));
+  }
+
+  async function guardarMov(mov, n) {
     if (!(n > 0)) { sacudir(); mostrarErrorForm('Escribe cuánto fue.'); return; }
     if (n > 1000000) { sacudir(); mostrarErrorForm('Ese monto parece demasiado grande. Revísalo.'); return; }
     $('#hoja-error').hidden = true;
