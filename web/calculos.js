@@ -38,7 +38,7 @@ var CAUDAL_CONFIG = [
   ['aviso_libre_bajo', 500, 'numero', 'Avisar si el Libre baja de', 'En pesos. Vacío = no avisar.'],
   ['avisos_dias_antes', '5,2,0', 'texto', 'Recordar el pago estos días antes', 'Separados por coma. 0 = el mismo día límite.'],
   ['avisos_correo', '', 'texto', 'Correos para recordatorios', 'Separados por coma. Vacío = no mandar correos.'],
-  ['url_app', '', 'texto', 'Dirección de la app', 'La dirección de Netlify, para poner el enlace en los correos.']
+  ['url_app', '', 'texto', 'Dirección de la app', 'La dirección de la app, para poner el enlace en los correos.']
 ];
 
 /* ---------------- utilidades de fecha (texto AAAA-MM-DD) ---------------- */
