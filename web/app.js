@@ -548,9 +548,9 @@
     tk += renglon('sale', 'arrow-up', m.gastado ? 'Salió' : 'Salió', partes.join(' · '), '−' + redondo(salio));
     // El resultado lleva su propia barra: qué parte de lo que tuviste sigue libre. Así el gráfico mide el número que tiene al lado.
     var pQueda = 100 - pSale, totalHtml;
-    if (r.libre < 0) totalHtml = '<small>Salió ' + redondo(-r.libre) + ' más de lo que tuviste este mes</small>';
-    else if (tuviste > 0) totalHtml = '<div class="tk-total-barra" role="img" aria-label="' + pQueda + ' por ciento de lo que tuviste"><span style="width:' + Math.max(2, pQueda) + '%"></span></div>' +
-      '<small><b>' + pQueda + '%</b> de los ' + redondo(tuviste) + ' que tuviste este mes</small>';
+    if (r.libre < 0) totalHtml = '<small>Salió ' + redondo(-r.libre) + ' más de lo que has tenido este mes</small>';
+    else if (tuviste > 0) totalHtml = '<div class="tk-total-barra" role="img" aria-label="' + pQueda + ' por ciento de lo que has tenido"><span style="width:' + Math.max(2, pQueda) + '%"></span></div>' +
+      '<small><b>' + pQueda + '%</b> de los ' + redondo(tuviste) + ' que has tenido este mes</small>';
     else totalHtml = '';
     tk += '<div class="tk-total' + (r.libre < 0 ? ' neg' : '') + '"><div class="tk-total-top"><span>Te queda libre</span><b class="num">' + (r.libre < 0 ? '−' : '') + redondo(r.libre) + '</b></div>' + totalHtml + '</div>';
     caja.appendChild(h('div', { class: 'tk', html: tk }));
