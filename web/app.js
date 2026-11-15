@@ -364,10 +364,18 @@
     });
   }
 
+  function tcCashback() {
+    if (!cbActivo()) return '';
+    var ps = catsConCb().map(pctCat), max = Math.max.apply(null, ps.concat([0]));
+    if (!max) return '';
+    var iguales = ps.every(function (p) { return p === max; });
+    return '<span class="tc-cb">' + (iguales ? '' : 'hasta ') + esc(String(max)) + '% cashback</span>';
+  }
+
   function pintarTarjeta(r, cfg) {
     var t = r.tarjeta, html, lim = limiteSiguiente(r), proximo = cdRedondear(r.deuda_tarjeta - t.por_pagar);
     html = '<div class="tc-top"><span class="tc-nombre"><span class="tc-chip" aria-hidden="true"></span>Tarjeta de crédito</span>' +
-      (Number(cfg.cashback_pct) ? '<span class="tc-cb">' + esc(cfg.cashback_pct) + '% cashback</span>' : '') + '</div>';
+      tcCashback() + '</div>';
     var accion = 'Ya pagué';
     if (t.por_pagar > 0) {
       var vencido = t.estado === 'vencido', d = t.dias_para_pagar;
@@ -405,6 +413,11 @@
 
   /** Cashback encendido = hay un porcentaje mayor a 0 en Ajustes. Apagado, no aparece en ningún lado. */
   function cbActivo() { return !!estado && Number(estado.config.cashback_pct) > 0; }
+  /** % de cashback de una categoría (0 si no tiene o está apagado). */
+  function pctCat(c) { return cbActivo() ? cdPctCategoria(c, estado.config) : 0; }
+  /** Las categorías con cashback, con su nombre tal como está en la lista de categorías. */
+  function catsConCb() { return cdLista(estado.config.categorias).filter(function (c) { return pctCat(c) > 0; }); }
+  function chipCb(pct) { return pct > 0 ? ' <span class="chip-cb">' + esc(String(pct)) + '%</span>' : ''; }
 
   /** ¿Este movimiento es un uso del cashback? (aplicado a la tarjeta o pasado al débito) */
   function esUsoCashback(m) { return m.tipo === 'cashback' || (m.tipo === 'ajuste' && (m.origen === 'cashback' || /^cashback/i.test(String(m.descripcion || '')))); }
@@ -415,16 +428,16 @@
    * tarjeta o pasarlo al monedero. Vence a los 365 días. Aquí se estima lo que hay por usar.
    */
   function saldoCashback(r, cfg) {
-    var pct = Number(cfg.cashback_pct) || 0, tope = cfg.cashback_tope === '' || cfg.cashback_tope == null ? null : Number(cfg.cashback_tope);
+    var tope = cfg.cashback_tope === '' || cfg.cashback_tope == null ? null : Number(cfg.cashback_tope);
     var desde = cdSumarDias(r.hoy, -365), porMes = {}, usado = 0;
     estado.movimientos.forEach(function (m) {
       if (m.tipo === 'compra' && m.medio === 'credito' && m.cashback === 'si' && m.fecha >= desde && m.fecha <= r.hoy) {
-        var k = String(m.fecha).slice(0, 7); porMes[k] = (porMes[k] || 0) + (Number(m.monto) || 0);
+        var k = String(m.fecha).slice(0, 7); porMes[k] = (porMes[k] || 0) + (Number(m.monto) || 0) * cdPctCompra(m, cfg) / 100;
       } else if (esUsoCashback(m)) usado += Math.abs(Number(m.monto) || 0);
     });
     var ganado = 0, mes = 0;
     Object.keys(porMes).forEach(function (k) {
-      var g = porMes[k] * pct / 100; if (tope != null && tope > 0) g = Math.min(g, tope);
+      var g = porMes[k]; if (tope != null && tope > 0) g = Math.min(g, tope);
       ganado += g; if (k === r.hoy.slice(0, 7)) mes = g;
     });
     return { porUsar: cdRedondear(Math.max(0, ganado - usado)), mes: cdRedondear(mes), usado: cdRedondear(usado), tope: tope };
@@ -472,7 +485,7 @@
 
     var cats = Object.keys(m.cats).sort(function (a, b) { return m.cats[b] - m.cats[a]; });
     if (cats.length) {
-      var max = m.cats[cats[0]], conCb = cbActivo() ? cdLista(cfg.categorias_cashback) : [];
+      var max = m.cats[cats[0]], conCb = catsConCb();
       var lista = h('div', { class: 'cats' });
       cats.forEach(function (c) {
         lista.appendChild(h('div', { class: 'cat' + (conCb.indexOf(c) >= 0 ? ' con-cb' : ''), html:
@@ -594,7 +607,7 @@
     var clase = efecto > 0 ? ' mas' : efecto === 0 ? ' neutro' : '';
     return h('button', { class: 'mov', type: 'button', onclick: function () { abrirForm(formDeMov(m), m); }, html:
       '<span class="mov-ico t-' + (esUsoCashback(m) ? 'cashback' : m.tipo) + (m.medio === 'debito' ? ' debito' : '') + '">' + ico(icoMov(m)) + '</span>' +
-      '<span class="mov-txt"><b>' + esc(nombreMov(m)) + (m.tipo === 'compra' && m.cashback === 'si' && cbActivo() ? ' <span class="mov-cb">' + esc(estado.config.cashback_pct) + '%</span>' : '') + '</b><small>' + esc(detalleMov(m, conFecha)) + '</small></span>' +
+      '<span class="mov-txt"><b>' + esc(nombreMov(m)) + (m.tipo === 'compra' && m.cashback === 'si' && cbActivo() ? ' <span class="mov-cb">' + esc(String(cdPctCompra(m, estado.config))) + '%</span>' : '') + '</b><small>' + esc(detalleMov(m, conFecha)) + '</small></span>' +
       '<span class="mov-monto' + clase + '">' + signo + cdPesos(Math.abs(m.monto)) + '</span>' });
   }
 
@@ -702,9 +715,8 @@
     dia_limite: ['Día límite de pago', 'Hasta cuándo puedes pagar sin intereses.'],
     categorias: ['Tus categorías', 'Toca × para quitar una o agrega otra.'],
     categoria_default: ['Categoría del ícono Anotar', 'Las compras rápidas se guardan en esta.'],
-    cashback_pct: ['Cuánto regresa', 'Porcentaje de cashback de la tarjeta.'],
-    categorias_cashback: ['Dan cashback', 'Toca las categorías en las que la tarjeta regresa dinero.'],
-    cashback_tope: ['Tope de cashback', 'Lo máximo al mes, en pesos. DiDi Card: $500.'],
+
+    cashback_tope: ['Tope al mes', 'Lo máximo que regresa. DiDi Card: $500.'],
     cashback_periodo: ['El tope se cuenta por', ''],
     cashback_destino: ['Normalmente usas el cashback en', 'Lo que aparece primero al anotar que lo usaste.'],
     aviso_libre_bajo: ['Avisar si el Libre baja de', 'En pesos. Vacío = no avisar.'],
@@ -844,6 +856,87 @@
     return cont;
   }
 
+  /**
+   * Cashback en Ajustes: un interruptor y, debajo, cada categoría con su porcentaje (− 6% +).
+   * Se guarda en la hoja como categorias_cashback = "Súper:6, Farmacia:2" y cashback_pct = el mayor
+   * (0 = apagado). Al apagar se conservan los porcentajes para cuando se vuelva a prender.
+   */
+  function editorCashback(cfg, lista, filasCb) {
+    var pcts = {}, base = Number(cfg.cashback_pct) || 0;
+    cdLista(cfg.categorias_cashback).forEach(function (x) {
+      var k = x.lastIndexOf(':'), nom = (k >= 0 ? x.slice(0, k) : x).trim();
+      var p = k >= 0 && x.slice(k + 1).trim() !== '' ? Number(x.slice(k + 1)) : (base || Number(leer('caudal.cbPct')) || 6);
+      if (nom && p > 0) pcts[nom.toLowerCase()] = p;
+    });
+    var activo = base > 0;
+    var inPct = h('input', { type: 'hidden', id: 'cfg-cashback_pct', value: String(base || 0) });
+    var inCats = h('input', { type: 'hidden', id: 'cfg-categorias_cashback', value: cfg.categorias_cashback || '' });
+    var sw = h('label', { class: 'fila campo-fila cb-switch', html:
+      '<span class="cb-switch-txt"><b>Llevar el cashback</b><small></small></span>' +
+      '<span class="switch"><input type="checkbox" id="cfg-cb-on"' + (activo ? ' checked' : '') + '><i></i></span>' });
+    var pie = sw.querySelector('small');
+    sw.appendChild(inPct); sw.appendChild(inCats);
+    lista.appendChild(sw);
+    var cont = h('div', { class: 'cb-cats' }), filaCats = h('div', { class: 'fila cb-cats-fila' }, [cont]);
+    lista.appendChild(filaCats); filasCb.push(filaCats);
+
+    var sincronizar = function () {
+      var cats = cdLista($('#cfg-categorias') ? $('#cfg-categorias').value : cfg.categorias);
+      var partes = [], max = 0;
+      cats.forEach(function (c) { var p = pcts[c.toLowerCase()] || 0; if (p > 0) { partes.push([c, p]); max = Math.max(max, p); } });
+      // Las que llevan el % mayor van sin número (ese % se guarda en cashback_pct); así la hoja se lee sencilla.
+      inCats.value = partes.map(function (x) { return x[1] === max ? x[0] : x[0] + ':' + x[1]; }).join(', ');
+      inPct.value = activo && max > 0 ? String(max) : '0';
+      pie.textContent = !activo ? 'Apagado, no aparece en ningún lado de la app.'
+        : partes.length ? partes.length + (partes.length === 1 ? ' categoría regresa dinero.' : ' categorías regresan dinero.') : 'Sube el porcentaje de alguna categoría.';
+    };
+    var avisar = function () { inCats.dispatchEvent(new Event('change', { bubbles: true })); };
+
+    var fila = function (c) {
+      var k = c.toLowerCase();
+      var el = h('div', { class: 'cb-cat' });
+      var num = h('b', { class: 'cb-num num' });
+      var menos = h('button', { type: 'button', class: 'cb-paso', 'aria-label': 'Menos cashback en ' + c, html: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12"/></svg>' });
+      var mas = h('button', { type: 'button', class: 'cb-paso', 'aria-label': 'Más cashback en ' + c, html: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12M12 6v12"/></svg>' });
+      var pintar = function (animar) {
+        var p = pcts[k] || 0;
+        el.classList.toggle('con', p > 0);
+        num.innerHTML = p > 0 ? p + '<small>%</small>' : '<span class="cb-no">No</span>';
+        menos.disabled = !(p > 0);
+        if (animar) { num.classList.remove('salta'); void num.offsetWidth; num.classList.add('salta'); }
+      };
+      var paso = function (d) {
+        var p = Math.max(0, Math.min(30, (pcts[k] || 0) + d));
+        if (p === (pcts[k] || 0)) return;
+        if (p > 0) pcts[k] = p; else delete pcts[k];
+        pintar(true); sincronizar(); avisar();
+      };
+      menos.addEventListener('click', function () { paso(-1); });
+      mas.addEventListener('click', function () { paso(1); });
+      el.appendChild(h('span', { class: 'cb-cat-ico', html: ico(icoCategoria(c)) }));
+      el.appendChild(h('span', { class: 'cb-cat-nom', text: c }));
+      el.appendChild(h('span', { class: 'cb-paso-grupo' }, [menos, num, mas]));
+      pintar(false);
+      return el;
+    };
+    var rehacer = function (cats) {
+      cont.innerHTML = '';
+      cats.forEach(function (c) { cont.appendChild(fila(c)); });
+      sincronizar();
+    };
+    sw.querySelector('input').addEventListener('change', function (e) {
+      e.stopPropagation();
+      activo = this.checked;
+      if (activo && !Object.keys(pcts).length) pcts[(cdLista(cfg.categorias)[0] || 'Súper').toLowerCase()] = Number(leer('caudal.cbPct')) || 6;
+      if (!activo) guardar('caudal.cbPct', String(Math.max.apply(null, Object.keys(pcts).map(function (k) { return pcts[k]; }).concat([0])) || ''));
+      filasCb.forEach(function (x) { x.hidden = !activo; });
+      sincronizar(); avisar();
+    });
+    rehacer(cdLista(cfg.categorias));
+    filaCats.hidden = !activo;
+    return { rehacer: rehacer, activo: function () { return activo; } };
+  }
+
   function pintarConfig() {
     var f = $('#form-config');
     if (f.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return; // no borrar lo que se está escribiendo
@@ -852,12 +945,12 @@
     campos.forEach(function (c) { porClave[c[0]] = c; });
     var cfg = estado.config;
     var opcionesCat = function (lista, conCb) {
-      var cb = cdLista(cfg.categorias_cashback);
-      return lista.map(function (c) { return { v: c, t: c, extra: conCb && Number(cfg.cashback_pct) > 0 && cb.indexOf(c) >= 0 ? ' <span class="chip-cb">' + esc(cfg.cashback_pct) + '%</span>' : '' }; });
+      return lista.map(function (c) { return { v: c, t: c }; });
     };
     // Al cambiar las categorías se rehacen los chips que dependen de ellas.
     var rehacerDependientes = function (lista) {
-      [['categoria_default', false], ['categorias_cashback', true]].forEach(function (par) {
+      if (cbEditor) cbEditor.rehacer(lista);
+      [['categoria_default', false]].forEach(function (par) {
         var vieja = $('#cfg-' + par[0]); if (!vieja) return;
         var valor = cdLista(vieja.value).filter(function (x) { return lista.indexOf(x) >= 0; });
         if (!par[1] && !valor.length) valor = [lista[0]];
@@ -866,25 +959,15 @@
       });
     };
 
+    var cbEditor = null;
     SECCIONES_CFG.forEach(function (s) {
       var claves = s.c.filter(function (k) { return porClave[k] && !CFG_OCULTOS[k]; });
       if (!claves.length) return;
       var lista = h('div', { class: 'lista-ios' });
       var esCb = s.t === 'Cashback', filasCb = [];
       if (esCb) {
-        var on = Number(cfg.cashback_pct) > 0;
-        var sw = h('label', { class: 'fila campo-fila cb-switch', html:
-          '<span class="cb-switch-txt"><b>Llevar el cashback</b><small>Apagado, no aparece en ningún lado de la app.</small></span>' +
-          '<span class="switch"><input type="checkbox" id="cfg-cb-on"' + (on ? ' checked' : '') + '><i></i></span>' });
-        lista.appendChild(sw);
-        sw.querySelector('input').addEventListener('change', function () {
-          var activo = this.checked, pct = $('#cfg-cashback_pct');
-          if (pct) {
-            if (!activo) { if (Number(pct.value) > 0) guardar('caudal.cbPct', pct.value); pct.value = '0'; }
-            else if (!(Number(pct.value) > 0)) pct.value = leer('caudal.cbPct') || '6';
-          }
-          filasCb.forEach(function (x) { x.hidden = !activo; });
-        });
+        cbEditor = editorCashback(cfg, lista, filasCb);
+        claves = claves.filter(function (k) { return k !== 'cashback_pct' && k !== 'categorias_cashback'; });
       }
       claves.forEach(function (clave) {
         var c = porClave[clave], tipo = c[2], valor = cfg[clave], id = 'cfg-' + clave, control;
@@ -910,7 +993,7 @@
         var filaCampo = h('div', { class: 'fila campo-fila' + (CAMPOS_ANCHOS[clave] ? ' campo-ancho' : '') }, [
           h('label', { for: id, html: '<b>' + esc(etq[0]) + '</b>' + (etq[1] ? '<small>' + esc(etq[1]) + '</small>' : '') }), control
         ]);
-        if (esCb) { filasCb.push(filaCampo); filaCampo.hidden = !(Number(cfg.cashback_pct) > 0); }
+        if (esCb) { filasCb.push(filaCampo); filaCampo.hidden = !cbEditor.activo(); }
         lista.appendChild(filaCampo);
       });
       if (s.vista === 'fechas') lista.appendChild(h('div', { class: 'fila cfg-previa', id: 'cfg-previa', 'aria-live': 'polite' }));
@@ -1017,10 +1100,9 @@
   function chipsCategoria(valor) {
     var oculto = h('input', { type: 'hidden', id: 'f-categoria', value: valor });
     var cont = h('div', { class: 'chips', role: 'radiogroup', 'aria-label': '¿De qué fue?' });
-    var conCb = cbActivo() ? cdLista(estado.config.categorias_cashback) : [];
     cdLista(estado.config.categorias).forEach(function (c) {
       var b = h('button', { type: 'button', class: 'chip' + (c === valor ? ' activo' : ''), role: 'radio', 'aria-checked': c === valor ? 'true' : 'false', 'data-cat': c,
-        html: ico(icoCategoria(c)) + esc(c) + (conCb.indexOf(c) >= 0 ? ' <span class="chip-cb">' + esc(estado.config.cashback_pct) + '%</span>' : '') });
+        html: ico(icoCategoria(c)) + esc(c) + chipCb(pctCat(c)) });
       b.addEventListener('click', function () {
         oculto.value = c;
         $$('.chip', cont).forEach(function (x) { var on = x === b; x.classList.toggle('activo', on); x.setAttribute('aria-checked', on ? 'true' : 'false'); });
@@ -1088,7 +1170,7 @@
         var libre = r.libre - n + (formActual.mov ? previo : 0);
         txt = libre < 0 ? 'Te pasarías por ' + cdPesos(-libre) : 'Te quedarían ' + cdPesos(libre) + ' libres';
         var credito = valorDe('medio') === 'credito', cat = valorDe('categoria');
-        if (credito && cdLista(cfg.categorias_cashback).indexOf(cat) >= 0 && Number(cfg.cashback_pct)) txt += ' · cashback ≈ ' + cdPesos(n * Number(cfg.cashback_pct) / 100);
+        if (credito && pctCat(cat) > 0) txt += ' · cashback ≈ ' + cdPesos(n * pctCat(cat) / 100);
       } else txt = 'Tienes ' + cdPesos(r.libre + previo) + ' libres';
     } else if (tipo === 'deposito') {
       txt = n > 0 ? 'Tendrías ' + cdPesos(r.libre + n - previo) + ' libres' : 'Lo que llegó a tu DiDi débito';

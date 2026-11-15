@@ -934,3 +934,26 @@ b, strong { font-weight: 600; }
 .cb-switch-txt { flex: 1; min-width: 0; }
 .cb-switch-txt b { display: block; font-weight: 400; font-size: 17px; }
 .cb-switch-txt small { display: block; font-size: 13px; color: var(--text-3); line-height: 1.3; margin-top: 2px; }
+
+/* Cashback por categoría en Ajustes */
+.cb-cats-fila { padding-top: 2px; padding-bottom: 6px; }
+.cb-cats { display: grid; width: 100%; }
+.cb-cat { display: flex; align-items: center; gap: 12px; min-height: 52px; }
+.cb-cat + .cb-cat { border-top: .5px solid var(--sep, rgba(255,255,255,.08)); }
+.cb-cat-ico { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--fill-2); color: var(--text-3); flex: none; transition: background .3s var(--ease-out), color .3s var(--ease-out); }
+.cb-cat-ico svg { width: 17px; height: 17px; }
+.cb-cat.con .cb-cat-ico { background: color-mix(in oklab, var(--mint-2) 22%, transparent); color: var(--mint); }
+.cb-cat-nom { flex: 1; min-width: 0; font-size: 17px; color: var(--text-2, var(--text)); transition: color .3s var(--ease-out); }
+.cb-cat.con .cb-cat-nom { color: var(--text); }
+.cb-paso-grupo { display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 99px; background: var(--fill-2); transition: background .3s var(--ease-out), box-shadow .3s var(--ease-out); }
+.cb-cat.con .cb-paso-grupo { background: color-mix(in oklab, var(--mint-2) 16%, var(--fill-2)); box-shadow: inset 0 0 0 .5px color-mix(in oklab, var(--mint) 35%, transparent); }
+.cb-paso { width: 32px; height: 32px; border: 0; border-radius: 99px; background: transparent; color: var(--text); display: grid; place-items: center; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: transform .2s var(--ease-out), opacity .2s; }
+.cb-paso svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+.cb-paso:active { transform: scale(.86); background: var(--fill-1, rgba(255,255,255,.08)); }
+.cb-paso:disabled { opacity: .3; pointer-events: none; }
+.cb-num { min-width: 42px; text-align: center; font-family: var(--font-num); font-weight: 600; font-size: 16px; font-variant-numeric: tabular-nums; color: var(--mint); }
+.cb-num small { font-size: 12px; margin-left: 1px; opacity: .8; }
+.cb-num .cb-no { font-family: inherit; font-weight: 500; font-size: 14px; color: var(--text-3); }
+.cb-num.salta { animation: cbSalta .32s var(--resorte-rebote, var(--ease-out)); }
+@keyframes cbSalta { 0% { transform: scale(.8); opacity: .5; } 100% { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .cb-num.salta { animation: none; } }
