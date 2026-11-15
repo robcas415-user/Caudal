@@ -377,6 +377,12 @@
     html = '<div class="tc-top"><span class="tc-nombre"><span class="tc-chip" aria-hidden="true"></span>Tarjeta de crédito</span>' +
       tcCashback() + '</div>';
     var accion = 'Ya pagué';
+    // El botón "Pagué tarjeta" lleva un punto cuando se acerca el día límite (rojo si es hoy, mañana o ya pasó).
+    var bp = $('.accion[data-form="pago_tarjeta"]');
+    if (bp) {
+      var urg = t.por_pagar > 0 ? (t.estado === 'vencido' || t.dias_para_pagar <= 1 ? 'urgente' : t.dias_para_pagar <= 5 ? 'pronto' : '') : '';
+      bp.classList.toggle('pendiente', !!urg); bp.classList.toggle('urgente', urg === 'urgente');
+    }
     if (t.por_pagar > 0) {
       var vencido = t.estado === 'vencido', d = t.dias_para_pagar;
       var clase = vencido || d <= 1 ? 'urgente' : d <= 5 ? 'pronto' : '';
@@ -1505,6 +1511,12 @@
     $('#salir-demo').addEventListener('click', function () { guardar(LS.demo, null); guardar(LS.demoDatos, null); estado = null; if (conexion().clave) iniciarApp(); else mostrarConectar(); });
 
     $$('[data-form]').forEach(function (b) { b.addEventListener('click', function () { abrirForm(b.dataset.form); }); });
+    // Cada acción tiene un gesto propio en su ícono al tocarla (el carrito avanza, la flecha baja…).
+    setTimeout(function () { var ac = $('.acciones'); if (ac) ac.classList.add('ya'); }, 1200); // la cascada de entrada, solo al abrir
+    $$('.accion').forEach(function (b) {
+      b.addEventListener('pointerdown', function () { b.classList.remove('toca'); void b.offsetWidth; b.classList.add('toca'); });
+      b.addEventListener('animationend', function (e) { if (e.animationName.indexOf('acc-') === 0 && e.animationName !== 'acc-entra' && e.animationName !== 'acc-punto') b.classList.remove('toca'); });
+    });
     $$('.tab').forEach(function (b) { b.addEventListener('click', function () { if (vistaActual !== b.dataset.vista) mostrarVista(b.dataset.vista); else window.scrollTo({ top: 0, behavior: 'smooth' }); }); });
     $('#btn-actualizar').addEventListener('click', function () { actualizar(false); });
     $('#form-mov').addEventListener('submit', enviarForm);
