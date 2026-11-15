@@ -674,9 +674,9 @@
     var pintar = function () {
       cont.innerHTML = '';
       cdLista(oculto.value).forEach(function (c, i, arr) {
-        var b = h('span', { class: 'chip chip-quitable', html: '<span class="cat-mini">' + ico(icoCategoria(c)) + '</span>' + esc(c) });
+        var b = h('span', { class: 'chip chip-quitable', html: '<span class="cat-mini">' + ico(icoCategoria(c)) + '</span><span class="chip-txt">' + esc(c) + '</span>' });
         if (arr.length > 1) {
-          var x = h('button', { type: 'button', class: 'chip-x', 'aria-label': 'Quitar ' + c, html: '×' });
+          var x = h('button', { type: 'button', class: 'chip-x', 'aria-label': 'Quitar ' + c, html: ico('x') });
           x.addEventListener('click', function () { var l = cdLista(oculto.value); l.splice(i, 1); fijar(l); });
           b.appendChild(x);
         }
