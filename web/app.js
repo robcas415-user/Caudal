@@ -701,7 +701,7 @@
     { t: 'Tú', c: ['nombre'] },
     { t: 'Tarjeta de crédito', c: ['dia_corte', 'dia_limite'], pie: 'Los dos días vienen en el estado de cuenta de DiDi.', vista: 'fechas' },
     { t: 'Compras', c: ['categorias', 'categoria_default'] },
-    { t: 'Cashback', c: ['cashback_pct', 'categorias_cashback', 'cashback_tope', 'cashback_periodo', 'cashback_destino'] },
+    { t: 'Cashback', c: ['cashback_pct', 'categorias_cashback', 'cashback_tope'] },
     { t: 'Recordatorios', c: ['aviso_libre_bajo', 'avisos_dias_antes', 'avisos_correo'], pie: 'Los correos salen cada mañana a las 8, solo si hay algo que recordar.' }
   ];
   // Ya no se usan desde que el Libre es débito menos tarjeta; se conservan en la hoja pero no se muestran.
@@ -717,8 +717,6 @@
     categoria_default: ['Categoría del ícono Anotar', 'Las compras rápidas se guardan en esta.'],
 
     cashback_tope: ['Tope al mes', 'Lo máximo que regresa. DiDi Card: $500.'],
-    cashback_periodo: ['El tope se cuenta por', ''],
-    cashback_destino: ['Normalmente usas el cashback en', 'Lo que aparece primero al anotar que lo usaste.'],
     aviso_libre_bajo: ['Avisar si el Libre baja de', 'En pesos. Vacío = no avisar.'],
     avisos_dias_antes: ['Recordar el pago', 'Elige con cuánta anticipación te avisa.'],
     avisos_correo: ['Mandar recordatorios a', 'Correos separados por coma. Vacío = no mandar.']
@@ -1246,7 +1244,7 @@
         '<span>La diferencia ya viene en el estado de cuenta<small>' + (vencC ? 'Ese pago venció el ' : 'Se suma al pago del ') + esc(fecha(limC, false)) + '</small></span>' +
         '<span class="switch"><input type="checkbox" id="f-encorte"><i></i></span>' });
       enCorteC.querySelector('input').addEventListener('change', actualizarNota);
-      var destino = h('div', { class: 'hoja-seccion cb-destino' }, [segmentado('f-cbdest', [{ v: 'tarjeta', t: 'En la tarjeta' }, { v: 'debito', t: 'A mi débito' }], estado.config.cashback_destino === 'debito' ? 'debito' : 'tarjeta', actualizarNota)]);
+      var destino = h('div', { class: 'hoja-seccion cb-destino' }, [segmentado('f-cbdest', [{ v: 'tarjeta', t: 'En la tarjeta' }, { v: 'debito', t: 'A mi débito' }], (leer('caudal.cbDestino') || estado.config.cashback_destino) === 'debito' ? 'debito' : 'tarjeta', actualizarNota)]);
       var ponerClase = function (v) {
         pregunta.textContent = v === 'debito' ? '¿Cuánto ves hoy en tu DiDi débito?' : v === 'tarjeta' ? '¿Cuánto dice DiDi que debe tu tarjeta?' : '¿Cuánto cashback usaste?';
         destino.hidden = v !== 'cashback';
@@ -1363,6 +1361,7 @@
     else if (formActual.cuadrar && valorDe('clase') === 'cashback') {
       // Usar el cashback: aplicado al pago baja la deuda; pasado al monedero sube el débito. En ambos el Libre sube.
       var aT = valorDe('cbdest') !== 'debito', x = cdLeerMonto(teclado.txt);
+      guardar('caudal.cbDestino', aT ? 'tarjeta' : 'debito'); // DiDi pregunta cada vez; aquí se recuerda la última
       mov = { tipo: 'ajuste', medio: aT ? 'credito' : 'debito', monto: (aT ? '-' : '') + (Number(x) || 0).toFixed(2), fecha: valorDe('fecha'), origen: 'cashback',
         descripcion: valorDe('descripcion') || (aT ? 'Cashback a la tarjeta' : 'Cashback a tu débito') };
       return guardarMov(mov, x);
