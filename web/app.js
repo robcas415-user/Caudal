@@ -234,8 +234,7 @@
   function pintarEsqueleto() {
     var barra = function (w, alto) { return '<span class="esqueleto" style="display:block;width:' + w + ';height:' + (alto || 14) + 'px;margin:8px 0"></span>'; };
     $('#tarjeta-credito').innerHTML = barra('45%') + barra('60%', 36) + barra('80%');
-    $('#mosaico-debito').innerHTML = barra('40%', 30) + barra('70%') + barra('55%', 22);
-    $('#mosaico-cashback').innerHTML = barra('40%', 30) + barra('70%') + barra('55%', 22);
+    $('#fila-cashback').innerHTML = barra('60%', 22);
   }
 
   function pintar() {
@@ -250,11 +249,10 @@
     pintarHeroe(r, vacio);
     pintarAvisos(r, vacio);
     pintarBienvenida(vacio);
-    ['#tarjeta-credito', '.duo', '#grupo-fechas', '#grupo-periodo', '#grupo-recientes'].forEach(function (s) { $(s).hidden = vacio; });
+    ['#tarjeta-credito', '#fila-cashback', '#grupo-periodo', '#grupo-recientes'].forEach(function (s) { $(s).hidden = vacio; });
     if (!vacio) {
       pintarTarjeta(r, cfg);
-      pintarMosaicos(r, cfg);
-      pintarFechas(r);
+      pintarCashback(r, cfg);
       pintarPeriodo(r, cfg);
       pintarRecientes();
     }
@@ -289,15 +287,19 @@
 
     var p = vacio ? null : resumenMes(r, estado.config), sub;
     if (vacio) sub = 'Anota el dinero que tienes y aquí verás cuánto puedes gastar.';
-    else if (r.libre < 0) sub = 'La tarjeta debe <b>' + cdPesos(-r.libre) + '</b> más de lo que tienes en débito.';
     else {
-      sub = 'En débito <b>' + pesosSinCentavos(r.saldo_debito) + '</b>' + (r.deuda_tarjeta > 0 ? ' menos <b>' + pesosSinCentavos(r.deuda_tarjeta) + '</b> de la tarjeta.' : ', la tarjeta no debe nada.');
+      // Las dos cifras son botones discretos: tocar una abre Cuadrar con esa cuenta (débito o tarjeta).
+      var cifra = function (n, clase, etq) { return '<button type="button" class="cifra" data-cuadrar="' + clase + '" aria-label="' + etq + ' ' + pesosSinCentavos(n) + '. Toca para cuadrar con DiDi">' + pesosSinCentavos(n) + '</button>'; };
+      sub = r.libre < 0 ? 'La tarjeta debe ' + cifra(r.deuda_tarjeta, 'deuda', 'Debe la tarjeta') + ' y en débito tienes ' + cifra(r.saldo_debito, 'ajuste', 'En débito') + '.'
+        : 'En débito ' + cifra(r.saldo_debito, 'ajuste', 'En débito') + (r.deuda_tarjeta > 0 ? ' menos ' + cifra(r.deuda_tarjeta, 'deuda', 'Debe la tarjeta') + ' de la tarjeta.' : ', la tarjeta no debe nada.');
       // Lo gastado hoy, con el día de México (igual que la hoja), no el del reloj del teléfono.
       var dHoy = hoyMexico(), comprasHoy = estado.movimientos.filter(function (m) { return m.tipo === 'compra' && m.fecha === dHoy; });
       var gastoHoy = cdRedondear(comprasHoy.reduce(function (t, m) { return t + (Number(m.monto) || 0); }, 0));
       sub += '<span class="heroe-dia">' + (comprasHoy.length ? 'Hoy llevas <b>' + cdPesos(gastoHoy) + '</b> gastados' + (comprasHoy.length > 1 ? ' en ' + comprasHoy.length + ' compras.' : '.') : 'Hoy no has anotado compras.') + '</span>';
     }
     $('#libre-sub').innerHTML = sub;
+    $$('#libre-sub [data-cuadrar]').forEach(function (b) { b.onclick = function () { abrirForm('otro', null, { clase: b.dataset.cuadrar }); }; });
+    if (!vacio && !leer('caudal.pistaCifras')) { guardar('caudal.pistaCifras', 1); $('#libre-sub').classList.add('pista'); }
 
     var barra = $('#heroe-barra');
     // Lo que tuvo para gastar este mes = lo ya gastado en el mes + lo que queda libre.
@@ -305,7 +307,7 @@
     barra.hidden = vacio || !p || total <= 0;
     if (!barra.hidden) {
       var pct = Math.min(100, Math.round(p.gastado / total * 100));
-      requestAnimationFrame(function () { $('#heroe-barra-relleno').style.width = pct + '%'; });
+      requestAnimationFrame(function () { $('#heroe-barra-relleno').style.clipPath = 'inset(0 ' + (100 - pct) + '% 0 0 round 99px)'; });
       $('#heroe-gastado').textContent = 'Gastado este mes ' + pesosSinCentavos(p.gastado);
       $('#heroe-recibido').textContent = 'Libre ' + pesosSinCentavos(Math.max(0, r.libre));
     }
@@ -361,9 +363,10 @@
   }
 
   function pintarTarjeta(r, cfg) {
-    var t = r.tarjeta, html;
+    var t = r.tarjeta, html, lim = limiteSiguiente(r), proximo = cdRedondear(r.deuda_tarjeta - t.por_pagar);
     html = '<div class="tc-top"><span class="tc-nombre"><span class="tc-chip" aria-hidden="true"></span>Tarjeta de crédito</span>' +
       (Number(cfg.cashback_pct) ? '<span class="tc-cb">' + esc(cfg.cashback_pct) + '% cashback</span>' : '') + '</div>';
+    var accion = 'Ya pagué';
     if (t.por_pagar > 0) {
       var vencido = t.estado === 'vencido', d = t.dias_para_pagar;
       var clase = vencido || d <= 1 ? 'urgente' : d <= 5 ? 'pronto' : '';
@@ -371,84 +374,44 @@
       html += '<p class="tc-etq">' + (vencido ? 'Pago vencido' : 'Toca pagar') + '</p>' +
         '<p class="tc-monto num">' + montoHtml(t.por_pagar) + '</p>' +
         '<div class="tc-plazo"><span>' + (vencido ? 'Era el ' : 'Antes del ') + esc(fecha(t.fecha_limite)) + '</span><span class="tc-dias ' + clase + '">' + dias + '</span></div>';
+      if (!t.alcanza_en_debito) html += '<p class="tc-falta">' + ico('warn') + '<span>En débito te faltan <b>' + cdPesos(t.falta_en_debito) + '</b> para este pago.</span></p>';
+    } else if (r.deuda_tarjeta > 0) {
+      // Nada vencido; lo comprado desde el corte se paga en el siguiente estado de cuenta.
+      var faltan = cdDiasEntre(r.hoy, lim);
+      html += '<p class="tc-etq">Nada que pagar por ahora</p><p class="tc-monto num">' + montoHtml(r.deuda_tarjeta) + '</p>' +
+        '<div class="tc-plazo"><span>Se paga antes del ' + esc(fecha(lim)) + '</span><span class="tc-dias">Faltan <b>' + faltan + '</b> días</span></div>';
+      accion = 'Pagar antes';
     } else {
-      if (r.deuda_tarjeta > 0) {
-        // Nada vencido, pero lo comprado desde el corte se pagará en el siguiente estado de cuenta.
-        var lim = limiteSiguiente(r), faltan = cdDiasEntre(r.hoy, lim);
-        html += '<p class="tc-etq">Próximo pago · nada pendiente hoy</p><p class="tc-monto num">' + montoHtml(r.deuda_tarjeta) + '</p>' +
-          '<div class="tc-plazo"><span>Corta el ' + esc(fecha(t.siguiente_corte, false)) + ' · pagar antes del ' + esc(fecha(lim, false)) + '</span><span class="tc-dias">Faltan <b>' + faltan + '</b> días</span></div>';
-      } else {
-        html += '<p class="tc-etq">Tarjeta</p><p class="tc-monto ok">' + ico('check') + 'Sin deuda</p>' +
-          '<div class="tc-plazo"><span>Próximo corte: ' + esc(fecha(t.siguiente_corte)) + '</span></div>';
-      }
+      html += '<p class="tc-etq">Tarjeta</p><p class="tc-monto ok">' + ico('check') + 'Sin deuda</p>';
+      accion = '';
     }
-    var limite = Number(cfg.limite_credito);
-    if (r.credito_disponible != null && limite > 0) {
-      var uso = Math.min(100, Math.max(0, Math.round(r.deuda_tarjeta / limite * 100)));
-      html += '<div class="tc-uso"><div class="tc-uso-pista"><div class="tc-uso-relleno" data-w="' + uso + '"></div></div>' +
-        '<div class="tc-uso-leyenda"><span>Usado ' + pesosSinCentavos(r.deuda_tarjeta) + '</span><span>Disponible ' + pesosSinCentavos(r.credito_disponible) + '</span></div></div>';
-    }
-    var dato = function (a, b) { return '<div class="tc-dato"><small>' + a + '</small><b>' + b + '</b></div>'; };
-    html += '<div class="tc-datos">' + dato('Desde el corte', pesosSinCentavos(t.compras_ciclo_actual)) + dato('Deuda total', pesosSinCentavos(r.deuda_tarjeta)) +
-      dato('Corte', 'Día ' + esc(cfg.dia_corte)) + '</div>';
+    // Lo que viene después, dentro de la misma tarjeta (antes vivía repetido en "Próximas fechas").
+    var cuando = function (f) { var n = cdDiasEntre(r.hoy, f); return n === 0 ? 'Hoy' : n === 1 ? 'Mañana' : 'En ' + n + ' días'; };
+    var linea = function (icono, a, b, c) { return '<div class="tc-linea">' + ico(icono) + '<span class="tc-linea-txt"><b>' + a + '</b><small>' + b + '</small></span><span class="tc-linea-der">' + c + '</span></div>'; };
+    html += '<div class="tc-lineas">' + linea('calendar', 'Corte · ' + esc(fecha(t.siguiente_corte, false)), 'Lo que compres después va al siguiente pago', cuando(t.siguiente_corte));
+    if (t.por_pagar > 0 && proximo > 0) html += linea('card', 'Siguiente pago · ' + esc(fecha(lim, false)), 'Lo que llevas desde el corte', '<b class="num">' + pesosSinCentavos(proximo) + '</b>');
+    html += '</div>';
+    if (accion) html += '<span class="tarjeta-accion">' + accion + ' ' + ico('chevron') + '</span>';
     var el = $('#tarjeta-credito');
     el.innerHTML = html;
-    requestAnimationFrame(function () { $$('[data-w]', el).forEach(function (b) { b.style.width = b.dataset.w + '%'; }); });
+    el.classList.toggle('tocable', !!accion);
+    if (accion) {
+      el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0'); el.setAttribute('aria-label', 'Anotar un pago a la tarjeta');
+      el.onclick = function () { abrirForm('pago_tarjeta'); };
+    } else { el.removeAttribute('role'); el.removeAttribute('tabindex'); el.onclick = null; }
   }
 
-  function pintarMosaicos(r, cfg) {
-    var t = r.tarjeta, html;
-    // Débito
-    html = '<span class="mosaico-ico">' + ico('wallet') + '</span><p class="mosaico-etq">Deberías ver en DiDi débito</p><p class="mosaico-monto num">' + montoHtml(r.saldo_debito) + '</p>';
-    if (r.deuda_tarjeta > 0 && r.saldo_debito > 0) {
-      var parte = Math.min(100, Math.round(r.deuda_tarjeta / r.saldo_debito * 100));
-      html += '<div class="mini-pista" aria-hidden="true"><span style="width:' + parte + '%;background:var(--amber)"></span><span style="width:' + (100 - parte) + '%;background:var(--mint)"></span></div>';
-    }
-    if (t.por_pagar > 0 && !t.alcanza_en_debito) html += '<p class="mosaico-nota mal">Faltan <b>' + cdPesos(t.falta_en_debito) + '</b> para pagar la tarjeta</p>';
-    else if (r.deuda_tarjeta > 0) html += '<p class="mosaico-nota"><b>' + pesosSinCentavos(Math.min(r.deuda_tarjeta, Math.max(0, r.saldo_debito))) + '</b> es para la tarjeta</p>';
-    else html += '<p class="mosaico-nota">Nada apartado para la tarjeta</p>';
-    html += '<span class="mosaico-accion">Cuadrar ' + ico('chevron') + '</span>';
-    var deb = $('#mosaico-debito'); deb.className = 'mosaico debito tocable'; deb.innerHTML = html;
-    deb.setAttribute('role', 'button'); deb.setAttribute('tabindex', '0'); deb.setAttribute('aria-label', 'Cuadrar el débito con DiDi');
-    deb.onclick = function () { abrirForm('otro', null, { clase: 'ajuste' }); };
-
-    // Cashback
-    var cb = r.cashback;
-    html = '<span class="mosaico-ico">' + ico('sparkle') + '</span><p class="mosaico-etq">Cashback ' + (cfg.cashback_periodo === 'corte' ? 'desde el corte' : 'este mes') + '</p>' +
-      '<p class="mosaico-monto num">' + montoHtml(cb.estimado) + '</p>';
-    if (cb.tope != null && cb.tope > 0) {
-      html += '<div class="mini-pista" aria-hidden="true"><span style="width:' + Math.min(100, Math.round(cb.estimado / cb.tope * 100)) + '%;background:var(--lime)"></span></div>';
-      html += '<p class="mosaico-nota">' + (cb.tope_alcanzado ? 'Llegaste al tope' : 'Tope de ' + pesosSinCentavos(cb.tope)) + '</p>';
-    } else {
-      html += '<p class="mosaico-nota">' + esc(cb.porcentaje) + '% en ' + esc(cdLista(cfg.categorias_cashback).join(', ') || 'compras') + ' con tarjeta. Llega a tu ' + (cfg.cashback_destino === 'debito' ? 'débito' : 'tarjeta') + '.</p>';
-    }
-    html += '<span class="mosaico-accion">Ya llegó ' + ico('chevron') + '</span>';
-    var cbx = $('#mosaico-cashback'); cbx.className = 'mosaico cashback tocable'; cbx.innerHTML = html;
-    cbx.setAttribute('role', 'button'); cbx.setAttribute('tabindex', '0'); cbx.setAttribute('aria-label', 'Anotar el cashback que depositó DiDi');
-    cbx.onclick = function () { abrirForm('otro', null, { clase: 'cashback' }); };
-  }
-
-  /** Línea de tiempo: lo que viene, en orden, con cuántos días faltan. */
-  function pintarFechas(r) {
-    var g = $('#grupo-fechas'), t = r.tarjeta, ev = [];
-    if (t.por_pagar > 0) ev.push({ f: t.fecha_limite, ico: 'card', tono: 'pago', t: t.estado === 'vencido' ? 'Pago de la tarjeta (vencido)' : 'Pagar la tarjeta', s: 'Para no pagar intereses', m: t.por_pagar });
-    ev.push({ f: t.siguiente_corte, ico: 'calendar', tono: 'corte', t: 'Corte de la tarjeta', s: 'Lo de después va al siguiente pago' });
-    var lim = limiteSiguiente(r), proximo = cdRedondear(r.deuda_tarjeta - t.por_pagar);
-    if (proximo > 0) ev.push({ f: lim, ico: 'card', tono: 'siguiente', t: t.por_pagar > 0 ? 'Siguiente pago de la tarjeta' : 'Pago de la tarjeta', s: 'Lo que llevas desde el corte', m: proximo });
-    ev = ev.filter(function (e) { return e.f >= r.hoy || e.tono === 'pago'; }).sort(function (a, b) { return a.f < b.f ? -1 : a.f > b.f ? 1 : 0; });
-    g.innerHTML = '';
-    g.appendChild(h('div', { class: 'grupo-cabeza' }, [h('h2', { class: 'grupo-titulo', text: 'Próximas fechas' })]));
-    var lista = h('div', { class: 'lista-ios linea-tiempo' });
-    ev.forEach(function (e) {
-      var d = cdDiasEntre(r.hoy, e.f);
-      var cuando = d < 0 ? 'Venció' : d === 0 ? 'Hoy' : d === 1 ? 'Mañana' : 'En ' + d + ' días';
-      var urg = e.tono === 'pago' && d <= 1 ? ' urgente' : e.tono === 'pago' && d <= 5 ? ' pronto' : '';
-      lista.appendChild(h('div', { class: 'evento ev-' + e.tono, html:
-        '<span class="ev-punto">' + ico(e.ico) + '</span>' +
-        '<span class="ev-txt"><b>' + esc(e.t) + '</b><small>' + esc(fecha(e.f)) + ' · ' + esc(e.s) + '</small></span>' +
-        '<span class="ev-der">' + (e.m != null ? '<b class="num">' + pesosSinCentavos(e.m) + '</b>' : '') + '<span class="ev-cuando' + urg + '">' + cuando + '</span></span>' }));
-    });
-    g.appendChild(lista);
+  /** Cashback en una fila: cuánto va y, al tocar, anotarlo cuando DiDi lo deposita. */
+  function pintarCashback(r, cfg) {
+    var cb = r.cashback, el = $('#fila-cashback');
+    var nota = cb.tope != null && cb.tope > 0 ? (cb.tope_alcanzado ? 'Llegaste al tope' : 'Tope de ' + pesosSinCentavos(cb.tope)) :
+      esc(cb.porcentaje) + '% en ' + esc(cdLista(cfg.categorias_cashback).join(', ') || 'compras') + ' · llega a tu ' + (cfg.cashback_destino === 'debito' ? 'débito' : 'tarjeta');
+    el.className = 'fila-cashback tocable';
+    el.innerHTML = '<span class="fcb-ico">' + ico('sparkle') + '</span>' +
+      '<span class="fcb-txt"><small>Cashback ' + (cfg.cashback_periodo === 'corte' ? 'desde el corte' : 'este mes') + '</small><b class="num">' + montoHtml(cb.estimado) + '</b><small>' + nota + '</small></span>' +
+      '<span class="tarjeta-accion">Ya llegó ' + ico('chevron') + '</span>';
+    el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0'); el.setAttribute('aria-label', 'Anotar el cashback que depositó DiDi');
+    el.onclick = function () { abrirForm('otro', null, { clase: 'cashback' }); };
   }
 
   /** Este mes: lo que entró y salió en el mes de calendario. Termina en el mismo Libre de arriba. */
@@ -473,13 +436,33 @@
   function pintarPeriodo(r, cfg) {
     var g = $('#grupo-periodo'), m = resumenMes(r, cfg);
     var nombreMes = new Date(Number(m.inicio.slice(0, 4)), Number(m.inicio.slice(5, 7)) - 1, 1).toLocaleDateString('es-MX', { month: 'long' });
+    var abierto = g.querySelector('.desplegable.abierto') != null;
     g.innerHTML = '';
-    g.appendChild(h('div', { class: 'grupo-cabeza' }, [h('h2', { class: 'grupo-titulo', text: 'Este mes' })]));
-    g.appendChild(h('p', { class: 'grupo-sub', text: 'Del 1 de ' + nombreMes + ' a hoy' }));
+    var verCompras = h('button', { class: 'grupo-link', type: 'button', text: 'Ver compras', onclick: function () { filtro = 'compra'; mesMov = null; mostrarVista('movimientos'); pintarMovimientos(); } });
+    g.appendChild(h('div', { class: 'grupo-cabeza' }, [h('h2', { class: 'grupo-titulo', text: 'Este mes' }), m.gastado ? verCompras : null]));
+    var caja = h('div', { class: 'lista-ios mes-caja' });
+
+    var cats = Object.keys(m.cats).sort(function (a, b) { return m.cats[b] - m.cats[a]; });
+    if (cats.length) {
+      var max = m.cats[cats[0]], conCb = cdLista(cfg.categorias_cashback);
+      var lista = h('div', { class: 'cats' });
+      cats.forEach(function (c) {
+        lista.appendChild(h('div', { class: 'cat' + (conCb.indexOf(c) >= 0 ? ' con-cb' : ''), html:
+          '<span class="cat-ico">' + ico(icoCategoria(c)) + '</span>' +
+          '<div class="cat-linea"><span>' + esc(c) + '</span><span>' + cdPesos(m.cats[c]) + '</span></div>' +
+          '<div class="cat-pista"><div class="cat-relleno" data-w="' + Math.max(3, Math.round(m.cats[c] / max * 100)) + '"></div></div>' }));
+      });
+      caja.appendChild(lista);
+      requestAnimationFrame(function () { $$('[data-w]', lista).forEach(function (b) { b.style.clipPath = 'inset(0 ' + (100 - Number(b.dataset.w)) + '% 0 0 round 99px)'; }); });
+    } else {
+      caja.appendChild(h('p', { class: 'mes-vacio', text: 'Aún no hay compras en ' + nombreMes + '.' }));
+    }
+
+    // La cuenta del mes (de dónde sale el Libre), plegada: se abre al tocar.
     var fila = function (a, b, clase, claseValor) { return '<div class="fila ' + (clase || '') + '"><span class="fila-txt">' + a + '</span><span class="fila-valor num ' + (claseValor || '') + '">' + b + '</span></div>'; };
     var signo = function (n) { return (n < 0 ? '− ' : '+ ') + cdPesos(Math.abs(n)); };
     var html = '';
-    if (m.antes !== 0) html += fila(m.antes > 0 ? 'Tenías libre al empezar' : 'Debías al empezar', signo(m.antes));
+    if (m.antes !== 0) html += fila(m.antes > 0 ? 'Al empezar el mes' : 'Debías al empezar', signo(m.antes));
     html += fila('Recibiste', signo(m.recibido));
     html += fila('Gastaste', signo(-m.gastado));
     if (m.credito && m.debito) {
@@ -488,21 +471,15 @@
     }
     if (m.otros) html += fila(m.otros < 0 ? 'Deudas y ajustes' : 'Cashback y ajustes', signo(m.otros));
     html += fila('<b>Te queda libre</b>', '<b>' + cdPesos(r.libre) + '</b>', 'fila-total', 'fuerte');
-    g.appendChild(h('div', { class: 'lista-ios', html: html }));
-
-    var cats = Object.keys(m.cats).sort(function (a, b) { return m.cats[b] - m.cats[a]; });
-    if (cats.length) {
-      var max = m.cats[cats[0]], conCb = cdLista(cfg.categorias_cashback);
-      var lista = h('div', { class: 'lista-ios cats', style: 'margin-top:12px' });
-      cats.forEach(function (c) {
-        lista.appendChild(h('div', { class: 'cat' + (conCb.indexOf(c) >= 0 ? ' con-cb' : ''), html:
-          '<span class="cat-ico">' + ico(icoCategoria(c)) + '</span>' +
-          '<div class="cat-linea"><span>' + esc(c) + '</span><span>' + cdPesos(m.cats[c]) + '</span></div>' +
-          '<div class="cat-pista"><div class="cat-relleno" data-w="' + Math.max(3, Math.round(m.cats[c] / max * 100)) + '"></div></div>' }));
-      });
-      g.appendChild(lista);
-      requestAnimationFrame(function () { $$('[data-w]', lista).forEach(function (b) { b.style.width = b.dataset.w + '%'; }); });
-    }
+    var boton = h('button', { type: 'button', class: 'desplegar', 'aria-expanded': abierto ? 'true' : 'false',
+      html: '<span>Cómo llegaste a tu Libre</span>' + ico('chevron-down') });
+    var cuerpo = h('div', { class: 'desplegable' + (abierto ? ' abierto' : '') }, [h('div', { class: 'desplegable-in', html: html })]);
+    boton.onclick = function () {
+      var on = !cuerpo.classList.contains('abierto');
+      cuerpo.classList.toggle('abierto', on); boton.setAttribute('aria-expanded', on ? 'true' : 'false');
+    };
+    caja.appendChild(boton); caja.appendChild(cuerpo);
+    g.appendChild(caja);
   }
 
   /** Compras que entraron por el ícono Anotar y aún no tienen categoría elegida. */
@@ -545,7 +522,7 @@
       h('button', { class: 'grupo-link', type: 'button', text: 'Ver todo', onclick: function () { mostrarVista('movimientos'); } })
     ]));
     var lista = h('div', { class: 'lista-ios' });
-    estado.movimientos.slice(0, 4).forEach(function (m) { lista.appendChild(filaMov(m, true)); });
+    estado.movimientos.slice(0, 3).forEach(function (m) { lista.appendChild(filaMov(m, true)); });
     g.appendChild(lista);
   }
 
@@ -1161,26 +1138,39 @@
     setTimeout(function () { if (!capa.classList.contains('abierta')) capa.hidden = true; }, 480);
   }
 
-  /** Arrastrar la hoja hacia abajo para cerrarla, como en iOS. */
+  /**
+   * Arrastrar la hoja, como en iOS: sigue el dedo 1:1, hacia arriba resiste (rubber band),
+   * el fondo se aclara según baja, y al soltar decide por velocidad, no solo por distancia.
+   */
   function arrastreHoja() {
-    var hoja = $('#hoja'), y0 = null, dy = 0, t0 = 0;
+    var hoja = $('#hoja'), capa = $('#hoja-capa'), y0 = null, dy = 0, muestras = [];
     hoja.addEventListener('touchstart', function (e) {
-      if (hoja.scrollTop > 0 || e.target.closest('.chips, input, .teclado')) { y0 = null; return; }
-      y0 = e.touches[0].clientY; dy = 0; t0 = Date.now();
-      hoja.style.transition = 'none';
+      if (hoja.scrollTop > 0 || e.target.closest('.chips, input, .teclado, .segmentado')) { y0 = null; return; }
+      y0 = e.touches[0].clientY; dy = 0; muestras = [{ y: y0, t: performance.now() }];
     }, { passive: true });
     hoja.addEventListener('touchmove', function (e) {
       if (y0 == null) return;
-      dy = Math.max(0, e.touches[0].clientY - y0);
-      hoja.style.transform = dy ? 'translateY(' + dy + 'px)' : '';
+      var y = e.touches[0].clientY, crudo = y - y0;
+      if (Math.abs(crudo) > 4 && !hoja.classList.contains('arrastrando')) { hoja.classList.add('arrastrando'); capa.classList.add('arrastrando'); }
+      // Hacia abajo 1:1; hacia arriba cada vez cuesta más.
+      dy = crudo >= 0 ? crudo : -12 * (1 - Math.exp(crudo / 60));
+      hoja.style.transform = 'translate3d(0,' + dy + 'px,0)';
+      var alto = hoja.offsetHeight || 1;
+      capa.style.backgroundColor = 'rgba(0,0,0,' + (0.55 * Math.max(0, 1 - Math.max(0, dy) / alto)).toFixed(3) + ')';
+      muestras.push({ y: y, t: performance.now() }); if (muestras.length > 5) muestras.shift();
     }, { passive: true });
-    hoja.addEventListener('touchend', function () {
+    var soltar = function () {
       if (y0 == null) return;
-      hoja.style.transition = '';
-      var rapido = dy > 60 && Date.now() - t0 < 250;
-      if (dy > 140 || rapido) cerrarForm(); else hoja.style.transform = '';
+      var a = muestras[0], b = muestras[muestras.length - 1], v = b && a && b.t > a.t ? (b.y - a.y) / (b.t - a.t) : 0; // px/ms
+      hoja.classList.remove('arrastrando'); capa.classList.remove('arrastrando');
+      capa.style.backgroundColor = '';
+      // Proyecta a dónde iría con la inercia del dedo (como iOS) antes de decidir.
+      var destino = dy + v * 180;
+      if (dy > 8 && (v > 0.5 || destino > hoja.offsetHeight * 0.35)) cerrarForm(); else hoja.style.transform = '';
       y0 = null;
-    });
+    };
+    hoja.addEventListener('touchend', soltar);
+    hoja.addEventListener('touchcancel', soltar);
   }
 
   function valorDe(n) { var el = $('#f-' + n); return el ? String(el.value).trim() : ''; }

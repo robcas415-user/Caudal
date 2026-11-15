@@ -29,3 +29,10 @@
 - El destello del héroe aparece cuando cambia el Libre: verde si sube, ámbar si baja.
 - Con movimiento reducido se quitan los desplazamientos y los bucles, pero se conservan los fundidos.
 - Solo se animan `transform` y `opacity`. Las barras de progreso son la excepción.
+
+## Inicio (v2) y resortes
+- Las acciones se sugieren sin decirlas: cifras como fichas tocables (héroe → Cuadrar), tarjetas con "acción ›" en menta (tarjeta → Ya pagué, cashback → Ya llegó) y totales con ⌄ (Movimientos).
+- Sin duplicados: Próximas fechas vive dentro de la tarjeta; la cuenta del mes queda plegada en "Cómo llegaste a tu Libre".
+- `--resorte` (sin rebote, interfaz) y `--resorte-rebote` (lo que se suelta con el dedo), definidos con `linear()`; si el navegador no lo soporta, se usa `--ease`.
+- Hoja: sigue el dedo 1:1, resiste hacia arriba, el fondo se aclara al bajarla y al soltar decide por velocidad.
+- Barras con `clip-path` (sin recalcular el diseño).
