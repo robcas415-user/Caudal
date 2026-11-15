@@ -83,20 +83,18 @@
         return Object.assign({ id: 'd' + n, fecha: fecha, tipo: tipo, monto: monto, medio: tipo === 'compra' ? 'credito' : 'debito', descripcion: '', categoria: '', creado: fecha + 'T00:00:' + String(10 + n), origen: 'demo' }, extra || {});
       };
       var d = {
-        config: { nombre: 'Mamá', dia_corte: Number(cdPartes(f(-9)).d), dia_limite: Number(cdPartes(f(11)).d), cashback_pct: 6, monto_periodo: 6000, periodo_dias: 15, avisos_correo: '', url_app: '' },
+        config: { nombre: 'Mamá', dia_corte: Number(cdPartes(f(-9)).d), dia_limite: Number(cdPartes(f(11)).d), cashback_pct: 6, monto_periodo: '', periodo_dias: '', avisos_correo: '', url_app: '' },
         movs: [
-          m(f(-30), 'ajuste', 800, { descripcion: 'Saldo inicial', medio: 'debito' }),
-          m(f(-24), 'deposito', 6000, { nuevo_periodo: true, descripcion: 'Gasto quincena' }),
-          m(f(-22), 'compra', 1850.4, { categoria: 'Súper', descripcion: 'Walmart', cashback: 'si' }),
-          m(f(-17), 'compra', 960, { categoria: 'Súper', descripcion: 'Soriana', cashback: 'si' }),
-          m(f(-14), 'compra', 320, { categoria: 'Farmacia', descripcion: 'Farmacia Guadalajara', medio: 'debito' }),
-          m(f(-12), 'compra', 1420.75, { categoria: 'Súper', descripcion: 'Chedraui', cashback: 'si' }),
-          m(f(-19), 'pago_tarjeta', 2500),
-          m(f(-9), 'deposito', 6000, { nuevo_periodo: true, descripcion: 'Gasto quincena' }),
-          m(f(-6), 'compra', 2104.3, { categoria: 'Súper', descripcion: 'Walmart', cashback: 'si' }),
-          m(f(-4), 'compra', 280, { categoria: 'Mercado', descripcion: 'Mercado', medio: 'debito' }),
-          m(f(-2), 'compra', 735.9, { categoria: 'Súper', descripcion: 'Bodega Aurrera', cashback: 'si' }),
-          m(f(0), 'compra', 189, { categoria: 'Farmacia', descripcion: 'Farmacia', cashback: 'no' })
+          m(f(-18), 'ajuste', 300, { descripcion: 'Saldo al empezar', medio: 'debito' }),
+          m(f(-11), 'deposito', 2800, { descripcion: 'Dinero de la semana' }),
+          m(f(-10), 'compra', 940.4, { categoria: 'Súper', descripcion: 'Walmart', cashback: 'si' }),
+          m(f(-8), 'compra', 210, { categoria: 'Farmacia', descripcion: 'Farmacia Guadalajara', medio: 'debito' }),
+          m(f(-7), 'compra', 655.75, { categoria: 'Súper', descripcion: 'Chedraui', cashback: 'si' }),
+          m(f(-4), 'deposito', 2800, { descripcion: 'Dinero de la semana' }),
+          m(f(-3), 'compra', 812.3, { categoria: 'Súper', descripcion: 'Walmart', cashback: 'si' }),
+          m(f(-3), 'compra', 180, { categoria: 'Mercado', descripcion: 'Mercado', medio: 'debito' }),
+          m(f(-1), 'compra', 435.9, { categoria: 'Súper', descripcion: 'Bodega Aurrera', cashback: 'si' }),
+          m(f(0), 'compra', 129, { categoria: 'Farmacia', descripcion: 'Farmacia', cashback: 'no' })
         ]
       };
       this.guardarDatos(d);
@@ -277,22 +275,20 @@
     $('#heroe-estado').textContent = vacio ? 'Sin datos' : est === 'negativo' ? 'Te pasaste' : est === 'bajo' ? 'Queda poco' : 'Vas bien';
     animarMonto($('#libre-monto'), r.libre, true);
 
-    var p = r.periodo, sub;
+    var p = vacio ? null : resumenMes(r, estado.config), sub;
     if (vacio) sub = 'Anota el dinero que tienes y aquí verás cuánto puedes gastar.';
-    else if (r.libre < 0) sub = 'Gastaste <b>' + cdPesos(-r.libre) + '</b> más de lo que recibiste.';
-    else if (p && p.por_dia != null) sub = 'Unos <b>' + pesosSinCentavos(p.por_dia) + ' al día</b> por ' + p.dias_restantes + (p.dias_restantes === 1 ? ' día más.' : ' días más.');
-    else if (p) sub = 'Llevas <b>' + pesosSinCentavos(p.gastado) + '</b> gastado en este periodo.';
-    else sub = 'Lo que recibiste menos lo que ya gastaste.';
+    else if (r.libre < 0) sub = 'La tarjeta debe <b>' + cdPesos(-r.libre) + '</b> más de lo que tienes en débito.';
+    else sub = 'En débito <b>' + pesosSinCentavos(r.saldo_debito) + '</b>' + (r.deuda_tarjeta > 0 ? ' menos <b>' + pesosSinCentavos(r.deuda_tarjeta) + '</b> de la tarjeta.' : ', la tarjeta no debe nada.');
     $('#libre-sub').innerHTML = sub;
 
     var barra = $('#heroe-barra');
-    // Lo que tenía para gastar en el periodo = lo ya gastado + lo que queda libre.
+    // Lo que tuvo para gastar este mes = lo ya gastado en el mes + lo que queda libre.
     var total = p ? p.gastado + Math.max(0, r.libre) : 0;
     barra.hidden = vacio || !p || total <= 0;
     if (!barra.hidden) {
       var pct = Math.min(100, Math.round(p.gastado / total * 100));
       requestAnimationFrame(function () { $('#heroe-barra-relleno').style.width = pct + '%'; });
-      $('#heroe-gastado').textContent = 'Gastado ' + pesosSinCentavos(p.gastado);
+      $('#heroe-gastado').textContent = 'Gastado este mes ' + pesosSinCentavos(p.gastado);
       $('#heroe-recibido').textContent = 'de ' + pesosSinCentavos(total);
     }
   }
@@ -395,7 +391,6 @@
     ev.push({ f: t.siguiente_corte, ico: 'calendar', tono: 'corte', t: 'Corte de la tarjeta', s: 'Lo que compres después va al siguiente pago' });
     var lim = limiteSiguiente(r), proximo = cdRedondear(r.deuda_tarjeta - t.por_pagar);
     if (proximo > 0) ev.push({ f: lim, ico: 'card', tono: 'siguiente', t: t.por_pagar > 0 ? 'Siguiente pago de la tarjeta' : 'Pago de la tarjeta', s: 'Lo que llevas hasta hoy; sube si compras más', m: proximo });
-    if (r.periodo && r.periodo.fin_estimado) ev.push({ f: r.periodo.fin_estimado, ico: 'arrow-down', tono: 'dinero', t: 'Te toca recibir dinero', s: 'Aprox., empieza otra ' + nombrePeriodo() });
     ev = ev.filter(function (e) { return e.f >= r.hoy || e.tono === 'pago'; }).sort(function (a, b) { return a.f < b.f ? -1 : a.f > b.f ? 1 : 0; });
     g.innerHTML = '';
     g.appendChild(h('div', { class: 'grupo-cabeza' }, [h('h2', { class: 'grupo-titulo', text: 'Próximas fechas' })]));
@@ -412,39 +407,54 @@
     g.appendChild(lista);
   }
 
+  /** Este mes: lo que entró y salió en el mes de calendario. Termina en el mismo Libre de arriba. */
+  function resumenMes(r, cfg) {
+    var inicio = r.hoy.slice(0, 8) + '01', m = { inicio: inicio, recibido: 0, gastado: 0, credito: 0, debito: 0, otros: 0, cats: {} };
+    estado.movimientos.forEach(function (x) {
+      if (x.fecha < inicio || x.fecha > r.hoy) return;
+      var monto = cdRedondear(x.monto), e = cdEfecto(x, cfg);
+      if (x.tipo === 'deposito') m.recibido += monto;
+      else if (x.tipo === 'compra') {
+        m.gastado += monto;
+        if (x.medio === 'debito') m.debito += monto; else m.credito += monto;
+        var c = x.categoria || 'Otro'; m.cats[c] = cdRedondear((m.cats[c] || 0) + monto);
+      } else m.otros += e.libre;
+    });
+    ['recibido', 'gastado', 'credito', 'debito', 'otros'].forEach(function (k) { m[k] = cdRedondear(m[k]); });
+    // Lo que había al empezar el mes = lo que queda menos lo que pasó en el mes; así siempre cuadra.
+    m.antes = cdRedondear(r.libre - m.recibido + m.gastado - m.otros);
+    return m;
+  }
+
   function pintarPeriodo(r, cfg) {
-    var g = $('#grupo-periodo'), p = r.periodo;
+    var g = $('#grupo-periodo'), m = resumenMes(r, cfg);
+    var nombreMes = new Date(Number(m.inicio.slice(0, 4)), Number(m.inicio.slice(5, 7)) - 1, 1).toLocaleDateString('es-MX', { month: 'long' });
     g.innerHTML = '';
-    g.appendChild(h('div', { class: 'grupo-cabeza' }, [h('h2', { class: 'grupo-titulo', text: estePeriodo() })]));
-    if (!p) {
-      g.appendChild(h('div', { class: 'lista-ios texto-ios', html: '<p>Cuando anotes <b>Recibí dinero</b> como dinero de la ' + esc(nombrePeriodo()) + ', aquí verás cuánto llevas gastado y cuánto te alcanza por día.</p>' }));
-      return;
-    }
-    g.appendChild(h('p', { class: 'grupo-sub', text: 'Desde el ' + fecha(p.inicio, false) + (p.fin_estimado ? ' · termina el ' + fecha(p.fin_estimado, false) + ' aprox.' : '') }));
+    g.appendChild(h('div', { class: 'grupo-cabeza' }, [h('h2', { class: 'grupo-titulo', text: 'Este mes' })]));
+    g.appendChild(h('p', { class: 'grupo-sub', text: 'Del 1 de ' + nombreMes + ' a hoy' }));
     var fila = function (a, b, clase, claseValor) { return '<div class="fila ' + (clase || '') + '"><span class="fila-txt">' + a + '</span><span class="fila-valor num ' + (claseValor || '') + '">' + b + '</span></div>'; };
-    var html = '';
-    // Se lee de arriba abajo y suma exactamente el Libre de la tarjeta grande.
     var signo = function (n) { return (n < 0 ? '− ' : '+ ') + cdPesos(Math.abs(n)); };
-    if (p.sobrante_anterior !== 0) html += fila(p.sobrante_anterior > 0 ? 'Sobró de antes' : 'Faltó de antes', signo(p.sobrante_anterior));
-    html += fila('Recibiste', signo(p.recibido));
-    html += fila('Gastaste', signo(-p.gastado));
-    if (p.gastado_credito && p.gastado_debito) {
-      html += fila('Con tarjeta', cdPesos(p.gastado_credito), 'fila-sangria');
-      html += fila('Con débito', cdPesos(p.gastado_debito), 'fila-sangria');
+    var html = '';
+    if (m.antes !== 0) html += fila(m.antes > 0 ? 'Tenías libre al empezar' : 'Debías al empezar', signo(m.antes));
+    html += fila('Recibiste', signo(m.recibido));
+    html += fila('Gastaste', signo(-m.gastado));
+    if (m.credito && m.debito) {
+      html += fila('Con tarjeta', cdPesos(m.credito), 'fila-sangria');
+      html += fila('Con débito', cdPesos(m.debito), 'fila-sangria');
     }
-    if (p.otros) html += fila(p.otros < 0 ? 'Deudas y ajustes' : 'Cashback y ajustes', signo(p.otros));
+    if (m.otros) html += fila(m.otros < 0 ? 'Deudas y ajustes' : 'Cashback y ajustes', signo(m.otros));
     html += fila('<b>Te queda libre</b>', '<b>' + cdPesos(r.libre) + '</b>', 'fila-total', 'fuerte');
     g.appendChild(h('div', { class: 'lista-ios', html: html }));
 
-    var cats = Object.keys(p.por_categoria).sort(function (a, b) { return p.por_categoria[b] - p.por_categoria[a]; });
+    var cats = Object.keys(m.cats).sort(function (a, b) { return m.cats[b] - m.cats[a]; });
     if (cats.length) {
-      var max = p.por_categoria[cats[0]], conCb = cdLista(cfg.categorias_cashback);
+      var max = m.cats[cats[0]], conCb = cdLista(cfg.categorias_cashback);
       var lista = h('div', { class: 'lista-ios cats', style: 'margin-top:12px' });
       cats.forEach(function (c) {
         lista.appendChild(h('div', { class: 'cat' + (conCb.indexOf(c) >= 0 ? ' con-cb' : ''), html:
           '<span class="cat-ico">' + ico(icoCategoria(c)) + '</span>' +
-          '<div class="cat-linea"><span>' + esc(c) + '</span><span>' + cdPesos(p.por_categoria[c]) + '</span></div>' +
-          '<div class="cat-pista"><div class="cat-relleno" data-w="' + Math.max(3, Math.round(p.por_categoria[c] / max * 100)) + '"></div></div>' }));
+          '<div class="cat-linea"><span>' + esc(c) + '</span><span>' + cdPesos(m.cats[c]) + '</span></div>' +
+          '<div class="cat-pista"><div class="cat-relleno" data-w="' + Math.max(3, Math.round(m.cats[c] / max * 100)) + '"></div></div>' }));
       });
       g.appendChild(lista);
       requestAnimationFrame(function () { $$('[data-w]', lista).forEach(function (b) { b.style.width = b.dataset.w + '%'; }); });
@@ -507,7 +517,7 @@
   function detalleMov(m, conFecha) {
     var d;
     if (m.tipo === 'compra') d = (m.medio === 'debito' ? 'Débito' : 'Tarjeta') + (m.categoria && m.descripcion && m.descripcion !== m.categoria ? ' · ' + m.categoria : '') + (m.cashback === 'si' ? ' · con cashback' : '') + (m.origen === 'wallet' ? ' · automático' : m.origen === 'atajo' ? ' · rápido' : '');
-    else if (m.tipo === 'deposito') d = m.nuevo_periodo ? 'Empieza periodo' : 'Dinero extra';
+    else if (m.tipo === 'deposito') d = 'A tu débito';
     else if (m.tipo === 'pago_tarjeta') d = 'De débito a la tarjeta';
     else if (m.tipo === 'cashback') d = 'Regreso de la tarjeta';
     else d = m.medio === 'credito' ? 'Deuda de la tarjeta' : 'Débito';
@@ -565,7 +575,7 @@
     { t: 'Tarjeta de crédito', c: ['dia_corte', 'dia_limite', 'dias_para_pagar', 'limite_credito'], pie: 'Los encuentras en el estado de cuenta de DiDi.' },
     { t: 'Cashback', c: ['cashback_pct', 'cashback_tope', 'cashback_periodo', 'cashback_destino', 'categorias_cashback'] },
     { t: 'Compras', c: ['categorias', 'categoria_default'] },
-    { t: 'Dinero que recibes', c: ['monto_periodo', 'periodo_dias'] },
+    { t: 'Dinero que recibes', c: ['monto_periodo'] },
     { t: 'Recordatorios', c: ['aviso_libre_bajo', 'avisos_dias_antes', 'avisos_correo'], pie: 'Los correos salen cada mañana a las 8 solo si hay algo que recordar.' },
     { t: 'Avanzado', c: ['url_app'] }
   ];
@@ -786,7 +796,7 @@
         if (credito && cdLista(cfg.categorias_cashback).indexOf(cat) >= 0 && Number(cfg.cashback_pct)) txt += ' · cashback ≈ ' + cdPesos(n * Number(cfg.cashback_pct) / 100);
       } else txt = valorDe('medio') === 'credito' ? 'Con tarjeta de crédito' : 'Sale de tu cuenta de débito';
     } else if (tipo === 'deposito') {
-      txt = n > 0 ? 'Tendrías ' + cdPesos(r.libre + n - previo) + ' libres' : 'Lo que te dieron para el gasto';
+      txt = n > 0 ? 'Tendrías ' + cdPesos(r.libre + n - previo) + ' libres' : 'Lo que llegó a tu DiDi débito';
     } else if (tipo === 'pago_tarjeta') {
       txt = n > 0 ? (r.tarjeta.por_pagar - n + previo > 0 ? 'Quedarían ' + cdPesos(r.tarjeta.por_pagar - n + previo) + ' por pagar' : 'Quedas al corriente') : 'Pagar la tarjeta no cambia tu Libre';
     } else {
@@ -822,10 +832,7 @@
     } else if (tipo === 'deposito') {
       titulo = mov ? 'Editar dinero recibido' : 'Recibí dinero';
       cuerpo.appendChild(seccionMonto());
-      var nuevo = mov ? !!mov.nuevo_periodo : true;
-      cuerpo.appendChild(h('label', { class: 'fila-switch', html:
-        '<span>Es el dinero de la ' + esc(nombrePeriodo()) + '<small>Apágalo si es dinero extra; así no reinicia la ' + esc(nombrePeriodo()) + '</small></span><span class="switch"><input type="checkbox" id="f-nuevo"' + (nuevo ? ' checked' : '') + '><i></i></span>' }));
-      cuerpo.appendChild(detalles('Nota y fecha', [filaDetalle('descripcion', 'Nota', mov && mov.descripcion, 'Ej. Gasto quincena'), filaDetalle('fecha', 'Fecha', (mov && mov.fecha) || r.hoy, '', 'date')], !!mov));
+      cuerpo.appendChild(detalles('Nota y fecha', [filaDetalle('descripcion', 'Nota', mov && mov.descripcion, 'Ej. Dinero de la semana'), filaDetalle('fecha', 'Fecha', (mov && mov.fecha) || r.hoy, '', 'date')], !!mov));
       monto = mov ? mov.monto : cfg.monto_periodo;
     } else if (tipo === 'pago_tarjeta') {
       titulo = mov ? 'Editar pago' : 'Pagué la tarjeta';
@@ -922,7 +929,7 @@
     if (!formActual) return;
     var tipo = formActual.tipo, mov = { monto: teclado.txt, fecha: valorDe('fecha'), descripcion: valorDe('descripcion') };
     if (tipo === 'compra') { mov.tipo = 'compra'; mov.medio = valorDe('medio'); mov.categoria = valorDe('categoria'); }
-    else if (tipo === 'deposito') { mov.tipo = 'deposito'; mov.nuevo_periodo = !!($('#f-nuevo') && $('#f-nuevo').checked); }
+    else if (tipo === 'deposito') { mov.tipo = 'deposito'; mov.nuevo_periodo = false; }
     else if (tipo === 'pago_tarjeta') { mov.tipo = 'pago_tarjeta'; }
     else {
       var clase = valorDe('clase');
