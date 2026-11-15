@@ -758,3 +758,34 @@ b, strong { font-weight: 600; }
 .cuenta-libre .fila-total .fila-valor { color: var(--mint); font-weight: 600; }
 .cuenta-libre .fila-total .fila-valor.neg { color: var(--red); }
 .grupo-pie + .grupo-pie { margin-top: 6px; }
+
+/* ============================== Movimientos: mes + resumen ============================== */
+.mes-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 2px 0 12px; }
+.mes-nombre { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
+.mes-flecha { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--fill); color: var(--text); transition: transform var(--t-fast) var(--ease-out), opacity .2s; }
+.mes-flecha:first-child .ico { transform: rotate(180deg); }
+.mes-flecha .ico { width: 20px; height: 20px; }
+.mes-flecha:active { transform: scale(.94); }
+.mes-flecha:disabled { opacity: .3; pointer-events: none; }
+
+.resumen-movs { display: grid; gap: 8px; margin-bottom: 18px; }
+.resumen-fila { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.resumen-tile {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; text-align: left;
+  padding: 14px 16px; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--stroke);
+  transition: transform var(--t-fast) var(--ease-out), border-color .2s ease, background .2s ease;
+}
+.resumen-tile:active { transform: scale(.97); }
+.rt-etq { font-size: 14px; font-weight: 500; color: var(--text-2); }
+.rt-monto { font-size: 24px; font-weight: 700; letter-spacing: -.02em; color: var(--text); white-space: nowrap; }
+.rt-nota { font-size: 13px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.rt-gasto { padding: 16px 18px; }
+.rt-gasto .rt-monto { font-size: 32px; }
+.rt-recibido .rt-monto { color: var(--mint); }
+.resumen-tile.activo { border-color: var(--mint); background: var(--mint-soft); }
+.resumen-tile.activo .rt-etq { color: var(--mint); }
+
+.filtro-aviso { display: flex; align-items: center; justify-content: space-between; margin: -6px 4px 6px; font-size: 14px; color: var(--text-2); }
+.filtro-quitar { color: var(--mint); font-weight: 600; font-size: 14px; padding: 8px 0 8px 12px; }
+@media (prefers-reduced-motion: reduce) { .resumen-tile:active, .mes-flecha:active { transform: none; } }
+.resumen-tile.cero .rt-monto { color: var(--text-3); }

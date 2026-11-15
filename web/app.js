@@ -10,7 +10,7 @@
   function guardar(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
 
   var estado = null;          // respuesta de accion=estado
-  var filtro = 'todos';
+  var filtro = 'todos', mesMov = null;
   var cargando = false;
 
   /* ===================== conexión ===================== */
@@ -556,7 +556,8 @@
     if (m.tipo === 'deposito') return m.descripcion || 'Dinero recibido';
     if (m.tipo === 'pago_tarjeta') return 'Pago a la tarjeta';
     if (m.tipo === 'cashback') return 'Cashback';
-    return m.descripcion || (m.medio === 'credito' ? 'Cuadre de tarjeta' : 'Cuadre de débito');
+    var d = String(m.descripcion || '').split(' (')[0].trim();
+    return d || (m.medio === 'credito' ? 'Cuadre de tarjeta' : 'Cuadre de débito');
   }
   function detalleMov(m, conFecha) {
     var d;
@@ -564,7 +565,7 @@
     else if (m.tipo === 'deposito') d = 'A tu débito';
     else if (m.tipo === 'pago_tarjeta') d = 'De débito a la tarjeta';
     else if (m.tipo === 'cashback') d = 'Regreso de la tarjeta';
-    else d = (Number(m.monto) < 0 ? 'Resta · ' : 'Suma · ') + (m.medio === 'credito' ? 'deuda de la tarjeta' : 'débito');
+    else d = m.medio === 'credito' ? (Number(m.monto) < 0 ? 'Baja la deuda de la tarjeta' : 'Sube la deuda de la tarjeta') : (Number(m.monto) < 0 ? 'Baja tu débito' : 'Sube tu débito');
     return conFecha ? diaCorto(m.fecha) + ' · ' + d : d;
   }
   function diaCorto(f) {
@@ -589,11 +590,63 @@
       '<span class="mov-monto' + clase + '">' + signo + cdPesos(Math.abs(m.monto)) + '</span>' });
   }
 
+  var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  function nombreMes(ym) { var p = ym.split('-'); var n = MESES[Number(p[1]) - 1]; return n.charAt(0).toUpperCase() + n.slice(1) + (p[0] !== estado.resumen.hoy.slice(0, 4) ? ' ' + p[0] : ''); }
+  function mesMover(ym, d) { var p = ym.split('-').map(Number), m = p[1] - 1 + d, y = p[0] + Math.floor(m / 12); m = ((m % 12) + 12) % 12; return y + '-' + String(m + 1).padStart(2, '0'); }
+
+  /**
+   * Movimientos: un mes a la vez. Arriba, el resumen del mes en tres totales que también sirven
+   * de filtro (tocar uno muestra solo eso; tocarlo otra vez vuelve a todo). Abajo, los días.
+   */
   function pintarMovimientos() {
     var cont = $('#lista-movs'); cont.innerHTML = '';
-    var movs = estado.movimientos.filter(function (m) { return filtro === 'todos' || m.tipo === filtro; });
+    var hoyMes = estado.resumen.hoy.slice(0, 7);
+    if (!mesMov || mesMov > hoyMes) mesMov = hoyMes;
+    var primero = estado.movimientos.reduce(function (a, m) { var k = String(m.fecha).slice(0, 7); return !a || k < a ? k : a; }, null) || hoyMes;
+    if (mesMov < primero) mesMov = primero;
+    var delMes = estado.movimientos.filter(function (m) { return String(m.fecha).slice(0, 7) === mesMov; });
+
+    // Selector de mes
+    var ant = h('button', { type: 'button', class: 'mes-flecha', 'aria-label': 'Mes anterior', html: ico('chevron') });
+    var sig = h('button', { type: 'button', class: 'mes-flecha', 'aria-label': 'Mes siguiente', html: ico('chevron') });
+    ant.disabled = mesMov <= primero; sig.disabled = mesMov >= hoyMes;
+    ant.onclick = function () { mesMov = mesMover(mesMov, -1); filtro = 'todos'; pintarMovimientos(); };
+    sig.onclick = function () { mesMov = mesMover(mesMov, 1); filtro = 'todos'; pintarMovimientos(); };
+    cont.appendChild(h('div', { class: 'mes-nav' }, [ant, h('h2', { class: 'mes-nombre', text: nombreMes(mesMov) }), sig]));
+
+    // Resumen del mes (y filtro)
+    var t = { compra: 0, deposito: 0, pago_tarjeta: 0, credito: 0, debito: 0, nCompra: 0, nDep: 0, nPago: 0 };
+    delMes.forEach(function (m) {
+      var n = cdRedondear(m.monto);
+      if (m.tipo === 'compra') { t.compra += n; t.nCompra++; if (m.medio === 'debito') t.debito += n; else t.credito += n; }
+      else if (m.tipo === 'deposito') { t.deposito += n; t.nDep++; }
+      else if (m.tipo === 'pago_tarjeta') { t.pago_tarjeta += n; t.nPago++; }
+    });
+    var veces = function (n, uno, varios) { return n === 1 ? '1 ' + uno : n + ' ' + varios; };
+    var tile = function (tipo, etq, monto, nota, tono) {
+      var b = h('button', { type: 'button', class: 'resumen-tile ' + tono + (filtro === tipo ? ' activo' : '') + (monto ? '' : ' cero'), 'aria-pressed': filtro === tipo ? 'true' : 'false',
+        html: '<span class="rt-etq">' + etq + '</span><span class="rt-monto num">' + pesosSinCentavos(Math.round(monto)) + '</span><span class="rt-nota">' + nota + '</span>' });
+      b.onclick = function () { filtro = filtro === tipo ? 'todos' : tipo; pintarMovimientos(); };
+      return b;
+    };
+    var notaGasto = t.nCompra ? (t.debito && t.credito ? 'Tarjeta ' + pesosSinCentavos(Math.round(t.credito)) + ' · Débito ' + pesosSinCentavos(Math.round(t.debito)) : veces(t.nCompra, 'compra', 'compras')) : 'Sin compras';
+    cont.appendChild(h('div', { class: 'resumen-movs' }, [
+      tile('compra', 'Gastaste', t.compra, notaGasto, 'rt-gasto'),
+      h('div', { class: 'resumen-fila' }, [
+        tile('deposito', 'Recibiste', t.deposito, t.nDep ? veces(t.nDep, 'vez', 'veces') : 'Nada', 'rt-recibido'),
+        tile('pago_tarjeta', 'Pagaste tarjeta', t.pago_tarjeta, t.nPago ? veces(t.nPago, 'pago', 'pagos') : 'Sin pagos', 'rt-pago')
+      ])
+    ]));
+
+    var NOMBRE_F = { compra: 'compras', deposito: 'dinero recibido', pago_tarjeta: 'pagos a la tarjeta' };
+    var movs = delMes.filter(function (m) { return filtro === 'todos' || m.tipo === filtro; });
+    if (filtro !== 'todos') {
+      var quitar = h('button', { type: 'button', class: 'filtro-quitar', text: 'Ver todo' });
+      quitar.onclick = function () { filtro = 'todos'; pintarMovimientos(); };
+      cont.appendChild(h('div', { class: 'filtro-aviso' }, [h('span', { text: 'Solo ' + NOMBRE_F[filtro] }), quitar]));
+    }
     if (!movs.length) {
-      cont.appendChild(h('div', { class: 'vacio', html: ico('list') + '<b>Sin movimientos</b>Lo que anotes aparecerá aquí.' }));
+      cont.appendChild(h('div', { class: 'vacio', html: ico('list') + '<b>' + (filtro === 'todos' ? 'Nada en ' + nombreMes(mesMov).toLowerCase() : 'Sin ' + NOMBRE_F[filtro] + ' este mes') + '</b>' + (mesMov === hoyMes ? 'Lo que anotes aparecerá aquí.' : '') }));
       return;
     }
     var porDia = {}, orden = [];
@@ -606,7 +659,7 @@
       var lista = h('div', { class: 'lista-ios' });
       porDia[f].forEach(function (m) { lista.appendChild(filaMov(m, false)); });
       cont.appendChild(h('section', { class: 'dia' }, [
-        h('h3', { class: 'dia-titulo', html: '<span>' + esc(titulo) + '</span><span>' + (gasto ? 'Gastado ' + cdPesos(gasto) : '') + '</span>' }),
+        h('h3', { class: 'dia-titulo', html: '<span>' + esc(titulo) + '</span><span>' + (gasto && filtro !== 'deposito' && filtro !== 'pago_tarjeta' ? cdPesos(gasto) + ' en compras' : '') + '</span>' }),
         lista
       ]));
     });
@@ -1269,13 +1322,6 @@
 
     $$('[data-form]').forEach(function (b) { b.addEventListener('click', function () { abrirForm(b.dataset.form); }); });
     $$('.tab').forEach(function (b) { b.addEventListener('click', function () { if (vistaActual !== b.dataset.vista) mostrarVista(b.dataset.vista); else window.scrollTo({ top: 0, behavior: 'smooth' }); }); });
-    $$('[data-filtro]').forEach(function (b) {
-      b.addEventListener('click', function () {
-        filtro = b.dataset.filtro;
-        $$('[data-filtro]').forEach(function (x) { var on = x === b; x.classList.toggle('activo', on); x.setAttribute('aria-selected', on ? 'true' : 'false'); });
-        pintarMovimientos();
-      });
-    });
     $('#btn-actualizar').addEventListener('click', function () { actualizar(false); });
     $('#form-mov').addEventListener('submit', enviarForm);
     $('#hoja-cerrar').addEventListener('click', cerrarForm);
