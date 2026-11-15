@@ -58,7 +58,7 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; background: var(--bg); }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; background: var(--bg); overflow-x: hidden; }
 body {
   margin: 0;
   min-height: 100vh;
@@ -188,11 +188,11 @@ b, strong { font-weight: 600; }
 .heroe.bajo { --h1: #6a5320; --h2: #3a2d12; --h3: #1f180b; --glow: rgba(255, 181, 71, .5); --acento: var(--amber); }
 .heroe.negativo { --h1: #6e2a24; --h2: #3b1714; --h3: #200c0b; --glow: rgba(255, 107, 94, .5); --acento: var(--red); }
 .heroe-brillo {
-  position: absolute; z-index: -1; width: 260px; height: 260px; right: -70px; top: -110px; border-radius: 50%;
-  background: radial-gradient(circle, var(--glow), transparent 68%);
-  filter: blur(6px); opacity: .7; animation: respirar 7s ease-in-out infinite;
+  position: absolute; z-index: -1; inset: 0; pointer-events: none;
+  background: radial-gradient(240px circle at 88% -12%, var(--glow), transparent 70%);
+  opacity: .75; animation: respirar 7s ease-in-out infinite;
 }
-@keyframes respirar { 50% { transform: translate(-16px, 12px) scale(1.08); opacity: .9; } }
+@keyframes respirar { 50% { opacity: 1; } }
 .heroe-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .heroe-etiqueta { font-size: 15px; font-weight: 600; color: rgba(255, 255, 255, .78); }
 .pastilla {
@@ -438,11 +438,11 @@ b, strong { font-weight: 600; }
 
 .guardar-flotante {
   position: fixed; left: 16px; right: 16px; z-index: 25; max-width: 528px; margin: 0 auto;
-  bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 22px);
-  transform: translateY(20px); opacity: 0; pointer-events: none;
+  width: auto; bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 22px);
+  transform: translateY(20px); opacity: 0; visibility: hidden; pointer-events: none;
   transition: transform var(--t) var(--spring), opacity .2s;
 }
-.guardar-flotante.visible { transform: none; opacity: 1; pointer-events: auto; }
+.guardar-flotante.visible { transform: none; opacity: 1; visibility: visible; pointer-events: auto; }
 
 .pie { text-align: center; font-size: 13px; color: var(--text-3); margin: 12px 0 0; }
 
@@ -598,6 +598,7 @@ b, strong { font-weight: 600; }
   font-size: 15px; line-height: 1.35;
   transform: translateY(-140%); transition: transform .5s var(--spring);
 }
+.tabbar-pastilla { min-width: 0; }
 .banner.visible { transform: none; }
 .banner-ico { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; flex: none; background: var(--mint); color: var(--mint-ink); }
 .banner-ico .ico { width: 20px; height: 20px; stroke-width: 2.4; }
