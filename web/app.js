@@ -1210,11 +1210,13 @@
     ['inicio', 'movimientos', 'ajustes'].forEach(function (x) {
       var el = $('#vista-' + x);
       el.hidden = x !== v;
-      el.classList.remove('entra');
+      el.classList.remove('entra', 'cambia');
     });
     var vista = $('#vista-' + v);
     void vista.offsetWidth;
-    vista.classList.add('entra');
+    // La primera vez entra con calma; al cambiar de pestaña (muchas veces al día) solo un fundido corto.
+    vista.classList.add(mostrarVista._ya ? 'cambia' : 'entra');
+    mostrarVista._ya = true;
     $$('.tab').forEach(function (b) {
       var on = b.dataset.vista === v;
       b.classList.toggle('activo', on);
