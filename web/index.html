@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Caudal</title>
+  <meta name="description" content="Cuánto dinero tienes libre, cuándo pagar la tarjeta y tu cashback.">
+  <meta name="theme-color" content="#14614a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Caudal">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Pantalla de conexión -->
+  <section id="conectar" class="pantalla" hidden>
+    <div class="conectar-caja">
+      <img src="icon-192.png" alt="" width="88" height="88" class="logo">
+      <h1>Caudal</h1>
+      <p class="grande">Para empezar, pega aquí el enlace que te mandaron.</p>
+      <form id="form-conectar">
+        <label for="enlace" class="sr">Enlace</label>
+        <textarea id="enlace" rows="3" placeholder="https://…#api=…&clave=…" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
+        <button class="btn btn-principal" type="submit">Conectar</button>
+      </form>
+      <p class="error" id="conectar-error" hidden></p>
+      <button class="btn btn-secundario" id="btn-demo" type="button">Ver demostración</button>
+    </div>
+  </section>
+
+  <!-- App -->
+  <div id="app" hidden>
+    <header class="encabezado">
+      <div>
+        <p class="saludo" id="saludo">Hola</p>
+        <p class="fecha-hoy" id="fecha-hoy"></p>
+      </div>
+      <button class="icono-btn" id="btn-actualizar" aria-label="Actualizar">
+        <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M12 4a8 8 0 0 1 7.4 5H17v2h6V5h-2v2.6A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8Zm8 8a8 8 0 0 1-15.4 3H7v-2H1v6h2v-2.6A10 10 0 0 0 22 12h-2Z"/></svg>
+      </button>
+    </header>
+    <div class="banda-demo" id="banda-demo" hidden>Modo demostración: los datos son de ejemplo. <button id="salir-demo" class="enlace">Salir</button></div>
+    <div class="banda-estado" id="banda-estado" hidden></div>
+
+    <main>
+      <!-- INICIO -->
+      <section class="vista" id="vista-inicio">
+        <div class="libre" id="tarjeta-libre">
+          <p class="libre-etiqueta">Libre para gastar</p>
+          <p class="libre-monto" id="libre-monto">—</p>
+          <p class="libre-sub" id="libre-sub"></p>
+        </div>
+
+        <ul class="avisos" id="avisos"></ul>
+
+        <div class="acciones">
+          <button class="accion accion-compra" data-form="compra">
+            <span class="accion-ico" aria-hidden="true">🛒</span><span>Anotar compra</span>
+          </button>
+          <button class="accion accion-deposito" data-form="deposito">
+            <span class="accion-ico" aria-hidden="true">💵</span><span>Recibí dinero</span>
+          </button>
+          <button class="accion accion-pago" data-form="pago_tarjeta">
+            <span class="accion-ico" aria-hidden="true">💳</span><span>Pagué la tarjeta</span>
+          </button>
+          <button class="accion accion-otro" data-form="otro">
+            <span class="accion-ico" aria-hidden="true">✏️</span><span>Otro</span>
+          </button>
+        </div>
+
+        <article class="tarjeta" id="t-tarjeta">
+          <h2>Tarjeta DiDi (crédito)</h2>
+          <div id="t-tarjeta-cuerpo"></div>
+        </article>
+
+        <article class="tarjeta" id="t-debito">
+          <h2>Cuenta DiDi débito</h2>
+          <div id="t-debito-cuerpo"></div>
+        </article>
+
+        <article class="tarjeta" id="t-cashback">
+          <h2>Cashback</h2>
+          <div id="t-cashback-cuerpo"></div>
+        </article>
+
+        <article class="tarjeta" id="t-periodo">
+          <h2>Este periodo</h2>
+          <div id="t-periodo-cuerpo"></div>
+        </article>
+
+        <p class="actualizado" id="actualizado"></p>
+      </section>
+
+      <!-- MOVIMIENTOS -->
+      <section class="vista" id="vista-movimientos" hidden>
+        <h1 class="titulo-vista">Movimientos</h1>
+        <div class="filtros" role="group" aria-label="Filtrar">
+          <button class="chip activo" data-filtro="todos">Todos</button>
+          <button class="chip" data-filtro="compra">Compras</button>
+          <button class="chip" data-filtro="deposito">Dinero recibido</button>
+          <button class="chip" data-filtro="pago_tarjeta">Pagos</button>
+        </div>
+        <div id="lista-movs"></div>
+      </section>
+
+      <!-- AJUSTES -->
+      <section class="vista" id="vista-ajustes" hidden>
+        <h1 class="titulo-vista">Ajustes</h1>
+        <form id="form-config" class="tarjeta"></form>
+
+        <article class="tarjeta">
+          <h2>¿Cómo se calcula el Libre?</h2>
+          <p><b>Libre</b> = dinero que recibiste − compras con tarjeta de crédito (pagadas o no) − gastos con débito (+ cashback).</p>
+          <p>Pagar la tarjeta <b>no cambia</b> el Libre: ese dinero ya estaba apartado desde que hiciste la compra.</p>
+          <p>El saldo que ves en la app de DiDi débito <b>no es</b> lo que puedes gastar: una parte es para pagar la tarjeta.</p>
+        </article>
+
+        <article class="tarjeta">
+          <h2>Conexión</h2>
+          <p class="pequeno" id="info-conexion"></p>
+          <button class="btn btn-secundario" id="btn-copiar-enlace" type="button">Copiar enlace para otro teléfono</button>
+          <button class="btn btn-peligro" id="btn-desconectar" type="button">Desconectar este teléfono</button>
+        </article>
+      </section>
+    </main>
+
+    <nav class="barra" aria-label="Secciones">
+      <button class="barra-btn activo" data-vista="inicio"><span aria-hidden="true">🏠</span>Inicio</button>
+      <button class="barra-btn" data-vista="movimientos"><span aria-hidden="true">📋</span>Movimientos</button>
+      <button class="barra-btn" data-vista="ajustes"><span aria-hidden="true">⚙️</span>Ajustes</button>
+    </nav>
+  </div>
+
+  <!-- Hoja para anotar / editar -->
+  <dialog id="hoja" class="hoja">
+    <form id="form-mov" method="dialog" novalidate>
+      <div class="hoja-cabeza">
+        <h2 id="hoja-titulo">Anotar</h2>
+        <button type="button" class="icono-btn" id="hoja-cerrar" aria-label="Cerrar">✕</button>
+      </div>
+      <div id="hoja-cuerpo"></div>
+      <p class="error" id="hoja-error" hidden></p>
+      <button class="btn btn-principal" id="hoja-guardar" type="submit">Guardar</button>
+      <button class="btn btn-peligro" id="hoja-borrar" type="button" hidden>Borrar este movimiento</button>
+    </form>
+  </dialog>
+
+  <div class="aviso-flotante" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="config.js"></script>
+  <script src="calculos.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

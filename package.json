@@ -1,0 +1,10 @@
+{
+  "name": "caudal",
+  "private": true,
+  "description": "Control de presupuesto con tarjeta DiDi: hoja de Google + app web + atajos de iPhone",
+  "scripts": {
+    "sync": "cp apps-script/Calculos.gs web/calculos.js",
+    "test": "node --test tests/*.test.js",
+    "serve": "npx --yes serve web -l 5173"
+  }
+}
