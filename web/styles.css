@@ -1145,3 +1145,24 @@ b, strong { font-weight: 600; }
 .mes-vacio { border-top: .5px solid var(--sep); font-size: 14px; }
 .fcb-txt .fdb-nota b { display: inline; font-size: inherit; line-height: inherit; letter-spacing: 0; font-weight: 600; color: var(--text-2); }
 .fcb-txt .fdb-nota .mal b { color: var(--red); }
+
+/* Este mes como ticket */
+.mes-flujo { display: none; }
+.tk { padding: 14px 16px 10px; }
+.tk-barra { display: flex; height: 8px; border-radius: 99px; overflow: hidden; background: var(--fill-2); margin-bottom: 12px; gap: 2px; }
+.tk-sale { background: var(--amber); border-radius: 99px; transition: width .8s var(--ease-out); }
+.tk-queda { flex: 1; background: var(--mint); border-radius: 99px; }
+.tk-fila { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 4px 0; font-size: 16px; }
+.tk-etq { display: inline-flex; align-items: center; gap: 8px; color: var(--text-2); }
+.tk-valor { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 500; }
+.tk-punto { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.tk-punto.sale { background: var(--amber); }
+.tk-punto.queda { background: var(--mint); }
+.tk-punto.neg { background: var(--red); }
+.tk-suave .tk-etq, .tk-suave .tk-valor { color: var(--text-3); }
+.tk-regla { border-top: 1px dashed var(--sep); margin: 6px 0 4px; }
+.tk-total { font-size: 18px; }
+.tk-total .tk-etq { color: var(--text); font-weight: 600; }
+.tk-total .tk-valor { font-weight: 700; }
+.tk-total.neg .tk-valor { color: var(--red); }
+.tk-punto { flex: none; }

@@ -527,20 +527,26 @@
     g.appendChild(h('div', { class: 'grupo-cabeza' }, [h('h2', { class: 'grupo-titulo', text: 'Este mes' }), m.gastado ? verCompras : null]));
     var caja = h('div', { class: 'lista-ios mes-caja' });
 
-    // Arriba, la cuenta del mes en una línea: lo que había + lo que entró − lo que salió = lo que queda.
+    // La cuenta del mes como ticket: se lee de arriba abajo y termina en lo que queda.
+    // Arriba, una barra con lo que tuviste: la parte que salió y la que queda.
     var entro = cdRedondear(m.recibido + m.otrosMas), salio = cdRedondear(m.gastado + m.otrosMenos);
-    var redondo = function (n) { return '$' + Math.round(Math.abs(n)).toLocaleString('es-MX'); }; // resumen: sin centavos
-    var celda = function (etq, valor, clase) { return '<div class="mes-celda ' + (clase || '') + '"><small>' + etq + '</small><b class="num">' + valor + '</b></div>'; };
-    var flujo = h('div', { class: 'mes-flujo', html:
-      celda('Entró', '+' + redondo(entro), 'mas') +
-      celda('Salió', '−' + redondo(salio), 'menos') +
-      celda('Te queda', (r.libre < 0 ? '−' : '') + redondo(r.libre), r.libre < 0 ? 'neg' : 'queda') });
-    caja.appendChild(flujo);
+    var tuviste = cdRedondear(Math.max(0, m.antes) + entro);
+    var pSale = tuviste > 0 ? Math.min(100, Math.round(salio / tuviste * 100)) : (salio > 0 ? 100 : 0);
+    var redondo = function (n) { return '$' + Math.round(Math.abs(n)).toLocaleString('es-MX'); };
+    var renglon = function (punto, etq, valor, clase) {
+      return '<div class="tk-fila ' + (clase || '') + '"><span class="tk-etq">' + '<i class="tk-punto ' + (punto || '') + '"></i>' + etq + '</span><span class="tk-valor num">' + valor + '</span></div>';
+    };
+    var tk = '<div class="tk-barra" aria-hidden="true"><span class="tk-sale" style="width:' + pSale + '%"></span><span class="tk-queda"></span></div>';
+    if (m.antes) tk += renglon('', m.antes > 0 ? 'Al empezar el mes' : 'Debías al empezar', (m.antes < 0 ? '−' : '') + redondo(m.antes), 'tk-suave');
+    tk += renglon('', 'Entró', '+' + redondo(entro));
+    tk += renglon('sale', 'Salió', '−' + redondo(salio));
+    tk += '<div class="tk-regla"></div>';
+    tk += renglon(r.libre < 0 ? 'neg' : 'queda', 'Te queda', (r.libre < 0 ? '−' : '') + redondo(r.libre), 'tk-total' + (r.libre < 0 ? ' neg' : ''));
+    caja.appendChild(h('div', { class: 'tk', html: tk }));
     var detalle = [];
-    if (m.antes) detalle.push((m.antes > 0 ? 'Empezaste el mes con ' : 'Empezaste el mes debiendo ') + pesosSinCentavos(Math.abs(m.antes)));
-    if (m.credito && m.debito) detalle.push('compras: ' + pesosSinCentavos(m.credito) + ' con tarjeta y ' + pesosSinCentavos(m.debito) + ' con débito');
-    if (m.otrosMas || m.otrosMenos) detalle.push('incluye saldos y ajustes que anotaste');
-    if (detalle.length) { var d = detalle.join(' · '); caja.appendChild(h('p', { class: 'mes-detalle', text: d.charAt(0).toUpperCase() + d.slice(1) + '.' })); }
+    if (m.credito && m.debito) detalle.push('Compras: ' + pesosSinCentavos(m.credito) + ' con tarjeta y ' + pesosSinCentavos(m.debito) + ' con débito.');
+    if (m.otrosMas || m.otrosMenos) detalle.push('Incluye saldos y ajustes que anotaste.');
+    if (detalle.length) caja.appendChild(h('p', { class: 'mes-detalle', text: detalle.join(' ') }));
 
     var cats = Object.keys(m.cats).sort(function (a, b) { return m.cats[b] - m.cats[a]; });
     if (cats.length) {
