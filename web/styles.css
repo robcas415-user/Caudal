@@ -1274,3 +1274,91 @@ body::before {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2), 0 10px 26px -10px rgba(20, 60, 38, .8);
 }
 .cat-relleno, .tk-b-queda { background: var(--mint-2); }
+
+
+/* =========================================================================
+   v47 · Paleta bosque curada (referencia: #051F20 #0B2B26 #163832 #235347 #8EB69B #DAF1DE)
+   Tres niveles de profundidad que se distinguen sin bordes duros:
+     fondo  #0a211c (el más profundo, con un haz de luz arriba a la izquierda)
+     vidrio #163832→#1b4038 (tarjetas: claramente más claras que el fondo)
+     relleno de marca #2f6f5c→#235347 (acciones) con tinta #DAF1DE
+   Texto: blanco verdoso para lo importante, salvia claro para lo secundario (≥ 4.5:1).
+   Acentos con un solo significado: helecho = entra/queda; pistache = tarjeta y cashback;
+   aqua = débito; coral suave = negativo.
+   ========================================================================= */
+:root {
+  --bg: #0a211c;
+  --bg-2: #0d2621;
+  --surface: #163832;
+  --surface-2: #1b4038;
+  --surface-3: #234a41;
+  --text: #f1f9f3;
+  --text-2: rgba(218, 241, 222, .82);
+  --text-3: rgba(218, 241, 222, .64);
+  --fill: rgba(218, 241, 222, .08);
+  --fill-2: rgba(218, 241, 222, .12);
+  --stroke: rgba(218, 241, 222, .12);
+  --sep: rgba(218, 241, 222, .11);
+  --mint: #a5cdb0;
+  --mint-2: #6fa585;
+  --mint-soft: rgba(142, 182, 155, .2);
+  --mint-ink: #e6f6e9;
+  --bosque: #2b6a57;
+  --bosque-2: #1f5244;
+  --lime: #d5e29a;
+  --lime-soft: rgba(213, 226, 154, .16);
+  --blue: #9dd0d8;
+  --blue-soft: rgba(157, 208, 216, .16);
+  --red: #f0998c;
+  --red-soft: rgba(240, 153, 140, .17);
+  --salida: #a7bcb0;
+  --salida-soft: rgba(167, 188, 176, .16);
+  --vidrio: linear-gradient(180deg, rgba(35, 83, 71, .62) 0%, rgba(25, 64, 56, .58) 100%);
+  --vidrio-canto:
+    inset 0 1px 0 rgba(218, 241, 222, .16),
+    inset 0 0 0 1px rgba(218, 241, 222, .07);
+  --vidrio-sombra: 0 1px 2px rgba(0, 0, 0, .22), 0 18px 36px -20px rgba(0, 0, 0, .75);
+}
+body { background: var(--bg); }
+body::before {
+  background:
+    radial-gradient(55% 38% at 8% -4%, rgba(142, 182, 155, .26), transparent 70%),
+    radial-gradient(60% 40% at 100% 45%, rgba(35, 83, 71, .35), transparent 70%),
+    radial-gradient(70% 45% at 20% 105%, rgba(22, 56, 50, .6), transparent 70%),
+    linear-gradient(180deg, #0d2722 0%, var(--bg) 50%, #081a16 100%);
+}
+/* Héroe: el elemento más claro y con más luz de la pantalla */
+.heroe { --h1: #357562; --h2: #24584a; --h3: #183f36; --glow: rgba(142, 182, 155, .45); }
+.heroe.bajo { --h1: #5f6b38; --h2: #3e4826; --h3: #263018; }
+.heroe.negativo { --h1: #7d4740; --h2: #522c27; --h3: #321b18; }
+
+/* Tarjeta de crédito: vidrio más oscuro que las demás con brillo pistache, sin la mancha del reflejo */
+.tarjeta-credito {
+  background:
+    radial-gradient(90% 70% at 100% 0%, rgba(213, 226, 154, .18), transparent 60%),
+    linear-gradient(160deg, #1d443b 0%, #163832 60%, #12302a 100%);
+  box-shadow: var(--vidrio-canto), 0 1px 2px rgba(0, 0, 0, .25), 0 24px 44px -24px rgba(0, 0, 0, .8);
+}
+.tarjeta-credito::after { display: none; }
+
+.tabbar-pastilla { background: linear-gradient(180deg, rgba(35, 83, 71, .78), rgba(22, 56, 50, .82)); }
+.hoja { background: #122f29; }
+
+/* Rellenos de marca: bosque con un canto de luz; tinta casi blanca */
+.boton-primario, .tk-igual, .banner-ico, .resumen-tile.activo .rt-ver {
+  background: linear-gradient(180deg, #37806a, var(--bosque) 55%, var(--bosque-2));
+  color: var(--mint-ink);
+  box-shadow: inset 0 1px 0 rgba(218, 241, 222, .28), 0 10px 24px -10px rgba(0, 0, 0, .7);
+}
+.boton-primario:disabled { background: var(--fill-2); color: var(--text-3); box-shadow: none; }
+
+/* Movimientos: números legibles; un cero no se apaga tanto que parezca deshabilitado */
+.resumen-tile.cero .rt-monto { color: var(--text-2); }
+.rt-ico { background: var(--fill-2); color: var(--text); }
+.rt-recibido .rt-ico { background: var(--mint-soft); color: var(--mint); }
+.mes-flecha { background: var(--fill-2); }
+.mes-flecha:disabled { opacity: .35; }
+
+/* Mismo significado de color en las tres pestañas: entra = helecho, tarjeta = pistache, débito = aqua */
+.mov-ico.t-compra { background: var(--lime-soft); color: var(--lime); }
+.mov-ico.t-deposito, .rt-recibido .rt-ico { background: var(--mint-soft); color: var(--mint); }
