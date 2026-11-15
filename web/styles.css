@@ -734,3 +734,21 @@ b, strong { font-weight: 600; }
   .teclado { gap: 4px; margin-bottom: 8px; }
   .tecla { height: 40px; font-size: 23px; border-radius: 13px; }
 }
+
+/* ---- Correcciones enfocadas ---- */
+/* Guardar: se ve apagado hasta que hay monto (sigue respondiendo para explicar qué falta). */
+#hoja-guardar { transition: opacity .2s ease, transform var(--t-fast) var(--ease-out); }
+#hoja-guardar.apagado { opacity: .42; box-shadow: 0 -12px 24px 6px #111f19; }
+/* Borrar: acción secundaria, no compite con Guardar. */
+#hoja-borrar { background: transparent; min-height: 44px; margin-top: 4px; font-weight: 500; }
+#hoja-borrar:active { background: var(--red-soft); }
+/* Ajustes: los campos se ven como campos (se nota que se pueden tocar). */
+.campo-fila > input:not([type=date]), .campo-unidad {
+  background: var(--fill); border-radius: 10px; padding: 8px 12px; color: var(--text);
+  transition: box-shadow .15s ease;
+}
+.campo-fila > input:not([type=date]) { max-width: 150px; }
+.campo-unidad input { width: 76px; padding: 0; background: transparent; color: var(--text); }
+.campo-unidad:focus-within, .campo-fila > input:focus { box-shadow: 0 0 0 2px var(--mint); }
+.campo-fila input:focus { color: var(--text); }
+.campo-fila.campo-ancho > input { padding: 10px 12px; max-width: none; width: 100%; }

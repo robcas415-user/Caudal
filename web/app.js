@@ -419,18 +419,21 @@
       html += '<div class="mini-pista" aria-hidden="true"><span style="width:' + Math.min(100, Math.round(cb.estimado / cb.tope * 100)) + '%;background:var(--lime)"></span></div>';
       html += '<p class="mosaico-nota">' + (cb.tope_alcanzado ? 'Llegaste al tope' : 'Tope de ' + pesosSinCentavos(cb.tope)) + '</p>';
     } else {
-      html += '<p class="mosaico-nota">' + esc(cb.porcentaje) + '% en ' + esc(cdLista(cfg.categorias_cashback).join(', ') || 'compras') + ' con tarjeta</p>';
+      html += '<p class="mosaico-nota">' + esc(cb.porcentaje) + '% en ' + esc(cdLista(cfg.categorias_cashback).join(', ') || 'compras') + ' con tarjeta. Llega a tu ' + (cfg.cashback_destino === 'debito' ? 'débito' : 'tarjeta') + '.</p>';
     }
-    var cbx = $('#mosaico-cashback'); cbx.className = 'mosaico cashback'; cbx.innerHTML = html;
+    html += '<span class="mosaico-accion">Ya llegó ' + ico('chevron') + '</span>';
+    var cbx = $('#mosaico-cashback'); cbx.className = 'mosaico cashback tocable'; cbx.innerHTML = html;
+    cbx.setAttribute('role', 'button'); cbx.setAttribute('tabindex', '0'); cbx.setAttribute('aria-label', 'Anotar el cashback que depositó DiDi');
+    cbx.onclick = function () { abrirForm('otro', null, { clase: 'cashback' }); };
   }
 
   /** Línea de tiempo: lo que viene, en orden, con cuántos días faltan. */
   function pintarFechas(r) {
     var g = $('#grupo-fechas'), t = r.tarjeta, ev = [];
-    if (t.por_pagar > 0) ev.push({ f: t.fecha_limite, ico: 'card', tono: 'pago', t: t.estado === 'vencido' ? 'Pago de la tarjeta (vencido)' : 'Pagar la tarjeta', s: 'Pago para no generar intereses', m: t.por_pagar });
-    ev.push({ f: t.siguiente_corte, ico: 'calendar', tono: 'corte', t: 'Corte de la tarjeta', s: 'Lo que compres después va al siguiente pago' });
+    if (t.por_pagar > 0) ev.push({ f: t.fecha_limite, ico: 'card', tono: 'pago', t: t.estado === 'vencido' ? 'Pago de la tarjeta (vencido)' : 'Pagar la tarjeta', s: 'Para no pagar intereses', m: t.por_pagar });
+    ev.push({ f: t.siguiente_corte, ico: 'calendar', tono: 'corte', t: 'Corte de la tarjeta', s: 'Lo de después va al siguiente pago' });
     var lim = limiteSiguiente(r), proximo = cdRedondear(r.deuda_tarjeta - t.por_pagar);
-    if (proximo > 0) ev.push({ f: lim, ico: 'card', tono: 'siguiente', t: t.por_pagar > 0 ? 'Siguiente pago de la tarjeta' : 'Pago de la tarjeta', s: 'Lo que llevas hasta hoy; sube si compras más', m: proximo });
+    if (proximo > 0) ev.push({ f: lim, ico: 'card', tono: 'siguiente', t: t.por_pagar > 0 ? 'Siguiente pago de la tarjeta' : 'Pago de la tarjeta', s: 'Lo que llevas desde el corte', m: proximo });
     ev = ev.filter(function (e) { return e.f >= r.hoy || e.tono === 'pago'; }).sort(function (a, b) { return a.f < b.f ? -1 : a.f > b.f ? 1 : 0; });
     g.innerHTML = '';
     g.appendChild(h('div', { class: 'grupo-cabeza' }, [h('h2', { class: 'grupo-titulo', text: 'Próximas fechas' })]));
@@ -771,7 +774,7 @@
           var esNum = tipo === 'numero';
           var input = h('input', { id: id, name: clave, value: valor, type: 'text', autocomplete: 'off', autocapitalize: esNum || clave === 'avisos_correo' ? 'off' : 'sentences',
             inputmode: esNum ? (clave.indexOf('dia_') === 0 ? 'numeric' : 'decimal') : clave === 'avisos_correo' ? 'email' : null,
-            placeholder: esNum ? '—' : clave === 'avisos_correo' ? 'nombre@correo.com' : '', enterkeyhint: 'done' });
+            placeholder: clave === 'cashback_tope' ? 'Sin tope' : clave === 'aviso_libre_bajo' ? 'No avisar' : esNum ? '—' : clave === 'avisos_correo' ? 'nombre@correo.com' : '', enterkeyhint: 'done' });
           // Prefijos y sufijos para que se entienda qué se escribe.
           var antes = clave === 'cashback_tope' || clave === 'aviso_libre_bajo' ? '$' : clave.indexOf('dia_') === 0 ? 'Día' : '';
           var despues = clave === 'cashback_pct' ? '%' : '';
@@ -834,6 +837,7 @@
     el.innerHTML = '<span class="m-signo">' + (teclado.negativo ? '−$' : '$') + '</span><span class="m-num">' + ent + '</span>' +
       (p.length > 1 ? '<span class="m-dec">.' + p[1] + '</span>' : '') + '<span class="cursor"></span>';
     el.classList.toggle('vacio-monto', !t);
+    var g = $('#hoja-guardar'); if (g) g.classList.toggle('apagado', !t || Number(t) === 0);
     el.setAttribute('aria-label', 'Monto: ' + (t ? cdPesos(Number(t)) : 'vacío'));
     actualizarNota();
   }
@@ -957,7 +961,7 @@
         txt = libre < 0 ? 'Te pasarías por ' + cdPesos(-libre) : 'Te quedarían ' + cdPesos(libre) + ' libres';
         var credito = valorDe('medio') === 'credito', cat = valorDe('categoria');
         if (credito && cdLista(cfg.categorias_cashback).indexOf(cat) >= 0 && Number(cfg.cashback_pct)) txt += ' · cashback ≈ ' + cdPesos(n * Number(cfg.cashback_pct) / 100);
-      } else txt = valorDe('medio') === 'credito' ? 'Con tarjeta de crédito' : 'Sale de tu cuenta de débito';
+      } else txt = 'Tienes ' + cdPesos(r.libre + previo) + ' libres';
     } else if (tipo === 'deposito') {
       txt = n > 0 ? 'Tendrías ' + cdPesos(r.libre + n - previo) + ' libres' : 'Lo que llegó a tu DiDi débito';
     } else if (tipo === 'pago_tarjeta') {
