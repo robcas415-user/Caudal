@@ -537,8 +537,7 @@
       return '<div class="tk-fila tk-' + tipo + '"><span class="tk-ico">' + ico(icono) + '</span>' +
         '<span class="tk-etq">' + etq + (sub ? '<small>' + sub + '</small>' : '') + '</span><span class="tk-valor num">' + valor + '</span></div>';
     };
-    var tk = '<div class="tk-cabeza"><span>De lo que tuviste, salió</span><b class="num">' + pSale + '%</b></div>' +
-      '<div class="tk-barra" aria-hidden="true"><span class="tk-b-sale" style="width:' + pSale + '%"></span><span class="tk-b-queda"></span></div>';
+    var tk = '';
     if (m.antes) tk += renglon(m.antes > 0 ? 'antes' : 'sale', 'wallet', m.antes > 0 ? 'Traías del mes pasado' : 'Debías del mes pasado', '', (m.antes < 0 ? '−' : '') + redondo(m.antes));
     var subEntro = m.recibido && m.otrosMas ? redondo(m.recibido) + ' recibido · ' + redondo(m.otrosMas) + ' en saldos y ajustes' : m.otrosMas ? 'Saldos y ajustes que anotaste' : '';
     tk += renglon('entra', 'arrow-down', 'Entró', subEntro, '+' + redondo(entro));
@@ -547,7 +546,13 @@
     if (m.debito) partes.push(redondo(m.debito) + ' débito');
     if (m.otrosMenos) partes.push(redondo(m.otrosMenos) + (m.gastado ? ' deudas y ajustes' : ' en deuda que anotaste'));
     tk += renglon('sale', 'arrow-up', m.gastado ? 'Salió' : 'Salió', partes.join(' · '), '−' + redondo(salio));
-    tk += '<div class="tk-total' + (r.libre < 0 ? ' neg' : '') + '"><span>Te queda libre</span><b class="num">' + (r.libre < 0 ? '−' : '') + redondo(r.libre) + '</b></div>';
+    // El resultado lleva su propia barra: qué parte de lo que tuviste sigue libre. Así el gráfico mide el número que tiene al lado.
+    var pQueda = 100 - pSale, totalHtml;
+    if (r.libre < 0) totalHtml = '<small>Salió ' + redondo(-r.libre) + ' más de lo que tuviste este mes</small>';
+    else if (tuviste > 0) totalHtml = '<div class="tk-total-barra" role="img" aria-label="' + pQueda + ' por ciento de lo que tuviste"><span style="width:' + Math.max(2, pQueda) + '%"></span></div>' +
+      '<small><b>' + pQueda + '%</b> de los ' + redondo(tuviste) + ' que tuviste este mes</small>';
+    else totalHtml = '';
+    tk += '<div class="tk-total' + (r.libre < 0 ? ' neg' : '') + '"><div class="tk-total-top"><span>Te queda libre</span><b class="num">' + (r.libre < 0 ? '−' : '') + redondo(r.libre) + '</b></div>' + totalHtml + '</div>';
     caja.appendChild(h('div', { class: 'tk', html: tk }));
 
     var cats = Object.keys(m.cats).sort(function (a, b) { return m.cats[b] - m.cats[a]; });

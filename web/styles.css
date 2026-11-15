@@ -1176,3 +1176,15 @@ b, strong { font-weight: 600; }
 .tk-total b { font-size: 22px; font-weight: 700; letter-spacing: -.01em; color: var(--text); }
 .tk-total.neg { background: var(--red-soft); box-shadow: inset 0 0 0 .5px rgba(255, 107, 94, .3); }
 .tk-total.neg b { color: var(--red); }
+
+/* Este mes v3: salidas en lima (la tarjeta y el gasto), entradas en menta; la barra vive en el resultado */
+.tk { padding-top: 6px; }
+.tk-sale .tk-ico { background: var(--lime-soft); color: var(--lime); }
+.tk-total { display: block; }
+.tk-total-top { display: flex; justify-content: space-between; align-items: center; }
+.tk-total-barra { height: 6px; border-radius: 99px; margin: 10px 0 7px; background: rgba(3, 20, 13, .45); box-shadow: inset 0 1px 1px rgba(0, 0, 0, .3); overflow: hidden; }
+.tk-total-barra span { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--mint-2), var(--mint)); box-shadow: 0 0 10px rgba(63, 224, 162, .45); transition: width .9s var(--ease-out); }
+.tk-total small { display: block; font-size: 13px; color: var(--text-2); }
+.tk-total small b { color: var(--mint); font-weight: 600; }
+.tk-total.neg small { margin-top: 6px; color: var(--red); }
+.tk-total small b { font-size: inherit; letter-spacing: 0; }
