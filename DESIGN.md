@@ -5,10 +5,10 @@
 ## Color (tokens en `web/styles.css :root`)
 - Fondos: `--bg #050d0a`, superficies `--surface` … `--surface-3`, rellenos translúcidos `--fill`.
 - Texto: `--text`, `--text-2` (70%) y `--text-3` (48%, solo para texto secundario, nunca para cifras clave).
-- Paleta análoga (v41, sin naranja), cada color con un solo significado:
-  - **Menta `--mint #3fe0a2`**: acción, dinero que entra, lo que queda libre.
-  - **Lima `--lime #d4f26a`**: la tarjeta de crédito (pagos, "pronto", lo apartado para la tarjeta), cashback y "Libre bajo".
-  - **Aqua `--blue #6ccfe6`**: identidad del débito.
+- Paleta análoga (v45 "vidrio líquido", sin naranja ni neón; fondo #0e1915 con luz ambiental salvia, superficies de vidrio translúcido con canto de luz y sombra suave), cada color con un solo significado:
+  - **Menta `--mint #8ad3ad (jade)`**: acción, dinero que entra, lo que queda libre.
+  - **Lima `--lime #cfe08c (pistache)`**: la tarjeta de crédito (pagos, "pronto", lo apartado para la tarjeta), cashback y "Libre bajo".
+  - **Aqua `--blue #93cbd6`**: identidad del débito.
   - **Salvia `--salida #8fa79c`**: lo que sale. Apagado a propósito: lo gastado no brilla, lo que queda sí.
   - **Rojo `--red`**: solo negativo, vencido o error.
 - El héroe cambia de verde a lima y a rojo según el Libre. El color nunca es la única señal: siempre va acompañado de texto ("Vas bien", "Ojo"…).
