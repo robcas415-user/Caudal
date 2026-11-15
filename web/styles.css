@@ -127,7 +127,7 @@ b, strong { font-weight: 600; }
 .etiqueta-campo { display: block; font-size: 15px; color: var(--text-2); margin: 0 4px 8px; }
 .conectar textarea {
   width: 100%; resize: none; border-radius: 14px; border: 1px solid var(--stroke);
-  background: var(--bg-2); padding: 14px; font-size: 15px; line-height: 1.35; margin-bottom: 14px;
+  background: var(--bg-2); padding: 14px; font-size: 16px; line-height: 1.35; margin-bottom: 14px;
   word-break: break-all;
 }
 .conectar textarea:focus { outline: none; border-color: var(--mint); }
@@ -651,4 +651,9 @@ b, strong { font-weight: 600; }
 }
 @media (min-width: 600px) {
   .acciones { gap: 14px; }
+}
+
+/* iPhone: un campo con letra menor a 16px hace zoom al tocarlo y la pantalla queda desbordada. */
+@supports (-webkit-touch-callout: none) {
+  input, textarea, select { font-size: max(16px, 1em); }
 }
