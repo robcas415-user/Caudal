@@ -1,6 +1,7 @@
 // Caudal — widget informativo para el iPhone (app gratuita "Scriptable").
-// Estilo v2 "vidrio": fondo casi negro con luz esmeralda, datos en vidrio translúcido,
-// mismos colores que la app (hoja = lo libre, pistache = tarjeta y cashback, azul = débito).
+// Estilo v3: el widget es una tarjeta de vidrio de la app (grafito con tinte esmeralda y filo de luz).
+// Sin cajas dentro de cajas: filas separadas por líneas finas, cada dato con su ícono y color
+// (hoja = lo libre, pistache = tarjeta y cashback, azul = débito).
 // Pantalla de inicio: Libre, pago de la tarjeta, débito y cashback.
 // Pantalla bloqueada: el Libre y el pago de la tarjeta, sin desbloquear.
 //
@@ -24,9 +25,9 @@ const C = {
 };
 // Fondo: luz esmeralda arriba a la izquierda que cae a casi negro (como la tarjeta Libre).
 const ESTADOS = {
-  bien: { fondo: ['#1f6e4b', '#0f2a1f', '#080d0b'], acento: C.hoja, texto: 'Vas bien' },
-  bajo: { fondo: ['#5c6828', '#252b12', '#0a0c07'], acento: C.pistache, texto: 'Queda poco' },
-  negativo: { fondo: ['#7a362f', '#2e1512', '#0c0807'], acento: C.coral, texto: 'Te pasaste' },
+  bien: { fondo: ['#1a3d2c', '#101d17', '#0a0f0d'], acento: C.hoja, texto: 'Vas bien' },
+  bajo: { fondo: ['#3a4120', '#181b10', '#0c0d09'], acento: C.pistache, texto: 'Queda poco' },
+  negativo: { fondo: ['#4a2420', '#1d1110', '#0e0a09'], acento: C.coral, texto: 'Te pasaste' },
 };
 const BLANCO = (a) => new Color('#ffffff', a == null ? 1 : a);
 const col = (hex, a) => new Color(hex, a == null ? 1 : a);
@@ -95,19 +96,35 @@ function monto(stack, n, tam, conCentavos) {
   return fila;
 }
 
-/** Vidrio: blanco translúcido con un filo de luz, como las tarjetas de la app. */
-function vidrio(stack, radio) {
-  stack.backgroundColor = BLANCO(0.08);
-  stack.borderColor = BLANCO(0.12); stack.borderWidth = 1;
-  stack.cornerRadius = radio;
+/** Estado del Libre: punto y texto en su color, sin caja. */
+function estado(stack, est, tam) {
+  const e = stack.addStack(); e.centerAlignContent();
+  texto(e, '●', Font.systemFont(tam - 4), col(est.acento));
+  e.addSpacer(5);
+  texto(e, est.texto, Font.semiboldSystemFont(tam), col(est.acento));
 }
 
-function pastilla(stack, est) {
-  const p = stack.addStack();
-  vidrio(p, 10); p.setPadding(3, 8, 3, 9); p.centerAlignContent();
-  texto(p, '●', Font.systemFont(7), col(est.acento));
-  p.addSpacer(4);
-  texto(p, est.texto, Font.semiboldSystemFont(11), BLANCO());
+/** Línea fina (horizontal o vertical) como separador. */
+function linea(stack, vertical) {
+  const l = stack.addStack();
+  l.backgroundColor = BLANCO(0.10);
+  if (vertical) { l.size = new Size(1, 0); l.layoutVertically(); } else { l.size = new Size(0, 1); l.layoutHorizontally(); }
+  l.addSpacer();   // la línea se estira a todo lo ancho (o alto)
+  return l;
+}
+
+/** Un dato: ícono de color + etiqueta + valor (con nota opcional), sin fondo. */
+function dato(stack, simbolo, colorIco, titulo, valor, colorValor, nota) {
+  const c = stack.addStack(); c.centerAlignContent(); c.setPadding(5, 0, 5, 0);
+  icono(c, simbolo, colorIco, 12);
+  c.addSpacer(8);
+  const t = c.addStack(); t.layoutVertically();
+  texto(t, titulo, Font.mediumSystemFont(10), BLANCO(0.72), { minimumScaleFactor: 0.75 });
+  const v = t.addStack(); v.bottomAlignContent();
+  texto(v, valor, Font.boldSystemFont(14), colorValor || BLANCO(), { minimumScaleFactor: 0.6 });
+  if (nota) { v.addSpacer(4); texto(v, nota, Font.semiboldSystemFont(10), BLANCO(0.72), { minimumScaleFactor: 0.7 }); }
+  c.addSpacer();
+  return c;
 }
 
 /** Lo que importa de la tarjeta, en las mismas palabras que la app. */
@@ -128,56 +145,40 @@ function tarjeta(r) {
 /* ---------- pantalla de inicio ---------- */
 
 function chico(w, r, est) {
-  const top = w.addStack(); top.centerAlignContent();
-  texto(top, 'Libre para gastar', Font.semiboldSystemFont(12), BLANCO(0.82), { minimumScaleFactor: 0.8 });
-  top.addSpacer();
-  texto(top, '●', Font.systemFont(9), col(est.acento));
+  texto(w, 'Libre para gastar', Font.semiboldSystemFont(12), BLANCO(0.86), { minimumScaleFactor: 0.8 });
   w.addSpacer(3);
   monto(w, r.libre, 30, false);
+  w.addSpacer(5);
+  estado(w, est, 11);
   w.addSpacer();
-  // Tarjeta en vidrio, abajo
+  linea(w, false);
   const t = tarjeta(r);
-  const c = w.addStack(); c.layoutHorizontally(); c.centerAlignContent();
-  vidrio(c, 12); c.setPadding(6, 8, 6, 8);
-  icono(c, 'creditcard.fill', col(C.pistache), 11);
-  c.addSpacer(6);
-  const v = c.addStack(); v.layoutVertically();
-  texto(v, t.titulo + (t.nota ? ' · ' + t.nota : ''), Font.mediumSystemFont(10), BLANCO(0.75), { minimumScaleFactor: 0.7 });
-  texto(v, t.valor, Font.boldSystemFont(14), t.color, { minimumScaleFactor: 0.6 });
-  c.addSpacer();
+  dato(w, 'creditcard.fill', col(C.pistache), t.titulo + (t.nota ? ' · ' + t.nota : ''), t.valor, t.color);
 }
 
 function mediano(w, r, est) {
   const fila = w.addStack();
   // Izquierda: Libre
   const izq = fila.addStack(); izq.layoutVertically();
-  texto(izq, 'Libre para gastar', Font.semiboldSystemFont(13), BLANCO(0.82));
+  texto(izq, 'Libre para gastar', Font.semiboldSystemFont(13), BLANCO(0.86));
   izq.addSpacer(3);
   monto(izq, r.libre, 34, true);
   izq.addSpacer(7);
-  pastilla(izq, est);
+  estado(izq, est, 12);
   izq.addSpacer();
+  pieHora(izq);
 
   fila.addSpacer(12);
-  // Derecha: datos en vidrio, cada uno con su color e ícono
-  const der = fila.addStack(); der.layoutVertically();
-  const dato = (simbolo, colorIco, titulo, valor, colorValor, nota) => {
-    const c = der.addStack(); c.centerAlignContent(); c.size = new Size(140, 0);
-    vidrio(c, 12); c.setPadding(5, 9, 5, 9);
-    icono(c, simbolo, colorIco, 11);
-    c.addSpacer(7);
-    const t = c.addStack(); t.layoutVertically();
-    texto(t, titulo, Font.mediumSystemFont(10), BLANCO(0.72), { minimumScaleFactor: 0.8 });
-    const v = t.addStack(); v.bottomAlignContent();
-    texto(v, valor, Font.boldSystemFont(14), colorValor || BLANCO(), { minimumScaleFactor: 0.6 });
-    if (nota) { v.addSpacer(4); texto(v, nota, Font.semiboldSystemFont(10), BLANCO(0.72), { minimumScaleFactor: 0.7 }); }
-    c.addSpacer();
-    der.addSpacer(5);
-  };
+  linea(fila, true);
+  fila.addSpacer(12);
+  // Derecha: tres datos en filas, separadas por líneas finas
+  const der = fila.addStack(); der.layoutVertically(); der.size = new Size(128, 0);
   const t = tarjeta(r);
-  dato('creditcard.fill', col(C.pistache), t.titulo, t.valor, t.color, t.nota);
-  dato('wallet.pass.fill', col(C.azul), 'En DiDi débito', sinCentavos(r.saldo_debito));
-  dato('sparkles', col(C.pistache), 'Cashback del mes', sinCentavos(r.cashback_estimado || 0), col(C.pistache));
+  dato(der, 'creditcard.fill', col(C.pistache), t.titulo, t.valor, t.color, t.nota);
+  linea(der, false);
+  dato(der, 'wallet.pass.fill', col(C.azul), 'En DiDi débito', sinCentavos(r.saldo_debito));
+  linea(der, false);
+  dato(der, 'sparkles', col(C.pistache), 'Cashback del mes', sinCentavos(r.cashback_estimado || 0), col(C.pistache));
 }
 
 /* ---------- pantalla bloqueada ---------- */
@@ -190,8 +191,18 @@ function bloqueoRect(w, r) {
     Font.mediumSystemFont(12), BLANCO(0.85), { minimumScaleFactor: 0.7 });
 }
 
+let DATOS = null;
+/** Hora de la última actualización: así se sabe si las cifras están al día. */
+function pieHora(stack) {
+  const hora = DATOS.t ? new Date(DATOS.t) : new Date();
+  const df = new DateFormatter(); df.locale = 'es_MX'; df.dateFormat = 'h:mm a';
+  texto(stack, (DATOS.viejo ? 'Sin conexión · ' : 'Actualizado ') + df.string(hora).replace('a. m.', 'a.m.').replace('p. m.', 'p.m.'),
+    Font.mediumSystemFont(9), DATOS.viejo ? col(C.pistache, 0.9) : BLANCO(0.6));
+}
+
 async function crear() {
   const datos = await cargar();
+  DATOS = datos;
   const fam = config.widgetFamily || 'medium';
   const w = new ListWidget();
   // iOS decide cuándo refrescar (normalmente cada 5–15 min). Pedimos lo más pronto posible.
@@ -215,19 +226,14 @@ async function crear() {
   if (fam === 'accessoryRectangular') { bloqueoRect(w, r); return w; }
 
   const g = new LinearGradient();
-  g.colors = est.fondo.map(h => new Color(h)); g.locations = [0, 0.48, 1];
+  g.colors = est.fondo.map(h => new Color(h)); g.locations = [0, 0.45, 1];
   g.startPoint = new Point(0, 0); g.endPoint = new Point(0.85, 1);
   w.backgroundGradient = g;
-  w.setPadding(14, 15, 11, 15);
+  w.setPadding(15, 15, 11, 15);
 
   if (fam === 'small') chico(w, r, est); else mediano(w, r, est);
 
-  // Hora de la última actualización: así se sabe si las cifras están al día.
-  w.addSpacer(4);
-  const pie = w.addStack(); pie.centerAlignContent();
-  const hora = datos.t ? new Date(datos.t) : new Date();
-  const df = new DateFormatter(); df.locale = 'es_MX'; df.dateFormat = 'h:mm a';
-  texto(pie, (datos.viejo ? 'Sin conexión · ' : 'Actualizado ') + df.string(hora).replace('a. m.', 'a.m.').replace('p. m.', 'p.m.'), Font.mediumSystemFont(9), datos.viejo ? col(C.pistache, 0.9) : BLANCO(0.6));
+  if (fam === 'small') { w.addSpacer(2); pieHora(w); }
   return w;
 }
 
