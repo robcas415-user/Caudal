@@ -31,7 +31,7 @@ var CAUDAL_CONFIG = [
   ['cashback_periodo', 'mes', 'opcion:mes,corte', 'El tope de cashback es por', '"mes" = mes de calendario; "corte" = de corte a corte.'],
   ['cashback_destino', 'tarjeta', 'opcion:tarjeta,debito', 'El cashback llega a', 'Dónde se abona el cashback cuando lo anotas.'],
   ['categorias', 'Súper,Farmacia,Mercado,Comida,Casa,Otro', 'texto', 'Categorías', 'Separadas por coma.'],
-  ['categorias_cashback', 'Súper', 'texto', 'Categorías con cashback', 'Separadas por coma. Las compras con crédito en estas categorías cuentan para el cashback.'],
+  ['categorias_cashback', 'Súper', 'texto', 'Categorías con cashback', 'Separadas por coma, con su porcentaje si es distinto: "Súper:6, Farmacia:2". Sin número usa el Cashback (%).'],
   ['categoria_default', 'Súper', 'texto', 'Categoría por defecto', 'La que se usa cuando la compra llega sola desde el iPhone.'],
   ['monto_periodo', '', 'numero', 'Cuánto recibe normalmente', 'Opcional. Se propone al anotar "Recibí dinero".'],
   ['periodo_dias', '', 'numero', 'Cada cuántos días recibe dinero', 'Opcional (ej. 7, 15, 30). Sirve para calcular cuánto puede gastar al día.'],
@@ -134,13 +134,38 @@ function cdLista(s) {
   return String(s || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
 }
 
+/**
+ * Cashback por categoría. categorias_cashback = "Súper:6, Farmacia:2" (sin número usa cashback_pct).
+ * Devuelve { 'súper': 6, 'farmacia': 2 } con los nombres en minúsculas. cashback_pct en 0 = apagado.
+ */
+function cdCashbackCategorias(cfg) {
+  var base = Number(cfg.cashback_pct) || 0, out = {};
+  cdLista(cfg.categorias_cashback).forEach(function (x) {
+    var i = x.lastIndexOf(':'), nom = (i >= 0 ? x.slice(0, i) : x).trim();
+    var pct = i >= 0 && x.slice(i + 1).trim() !== '' ? Number(x.slice(i + 1)) : base;
+    if (nom && pct > 0) out[nom.toLowerCase()] = pct;
+  });
+  return out;
+}
+
+/** Porcentaje de cashback de una categoría (0 si no tiene o si el cashback está apagado). */
+function cdPctCategoria(cat, cfg) {
+  if (!(Number(cfg.cashback_pct) > 0)) return 0;
+  return cdCashbackCategorias(cfg)[String(cat || '').toLowerCase()] || 0;
+}
+
 /** ¿Esta compra cuenta para cashback? */
 function cdTieneCashback(m, cfg) {
   if (m.tipo !== 'compra' || m.medio !== 'credito') return false;
   if (m.cashback === 'si' || m.cashback === true) return true;
   if (m.cashback === 'no' || m.cashback === false) return false;
-  var cats = cdLista(cfg.categorias_cashback).map(function (x) { return x.toLowerCase(); });
-  return cats.indexOf(String(m.categoria || '').toLowerCase()) >= 0;
+  return (cdCashbackCategorias(cfg)[String(m.categoria || '').toLowerCase()] || 0) > 0;
+}
+
+/** Porcentaje que regresa una compra con cashback: el de su categoría o, si se marcó a mano, el general. */
+function cdPctCompra(m, cfg) {
+  if (!(Number(cfg.cashback_pct) > 0)) return 0;
+  return cdPctCategoria(m.categoria, cfg) || Number(cfg.cashback_pct) || 0;
 }
 
 /* ---------------- tarjeta: corte y límite ---------------- */
@@ -211,7 +236,7 @@ function calcularCaudal(movs, cfgEntrada, hoy) {
   // Cashback
   var pHoy = cdPartes(hoy);
   var cbInicio = cfg.cashback_periodo === 'corte' ? cdSumarDias(corte, 1) : cdFechaTexto(pHoy.y, pHoy.m, 1);
-  var cbBase = 0, cbRecibidoTotal = 0;
+  var cbBase = 0, cbGanado = 0, cbRecibidoTotal = 0;
 
   // Periodo: empieza en el último depósito marcado como "nuevo periodo"
   var idxPeriodo = -1;
@@ -241,7 +266,7 @@ function calcularCaudal(movs, cfgEntrada, hoy) {
     }
 
     // Cashback estimado
-    if (cdTieneCashback(m, cfg) && m.fecha >= cbInicio && m.fecha <= hoy) cbBase += x;
+    if (cdTieneCashback(m, cfg) && m.fecha >= cbInicio && m.fecha <= hoy) { cbBase += x; cbGanado += x * cdPctCompra(m, cfg) / 100; }
 
     // Periodo
     if (idxPeriodo < 0 || i < idxPeriodo) libreAntesDelPeriodo += e.libre;
@@ -265,8 +290,7 @@ function calcularCaudal(movs, cfgEntrada, hoy) {
   else if (diasParaPagar <= 3) estadoTarjeta = 'pronto';
   else estadoTarjeta = 'pendiente';
 
-  var pct = Number(cfg.cashback_pct) || 0;
-  var cbEstimado = cdRedondear(cbBase * pct / 100);
+  var cbEstimado = cdRedondear(cbGanado);
   var tope = cfg.cashback_tope === '' ? null : Number(cfg.cashback_tope);
   var cbTopeAlcanzado = tope !== null && cbEstimado >= tope;
   if (tope !== null) cbEstimado = Math.min(cbEstimado, tope);
@@ -318,7 +342,7 @@ function calcularCaudal(movs, cfgEntrada, hoy) {
       compras_ciclo_anterior: cdRedondear(comprasCicloAnterior)
     },
     cashback: {
-      porcentaje: pct,
+      porcentaje: Number(cfg.cashback_pct) || 0,
       desde: cbInicio,
       base: cdRedondear(cbBase),
       estimado: cdRedondear(cbEstimado),
@@ -410,6 +434,6 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     calcularCaudal: calcularCaudal, cdAvisosDelDia: cdAvisosDelDia, cdLeerMonto: cdLeerMonto, cdPesos: cdPesos,
     cdUltimoCorte: cdUltimoCorte, cdLimiteDe: cdLimiteDe, cdNormalizarConfig: cdNormalizarConfig,
-    cdMensajeAnotado: cdMensajeAnotado, cdResumenTexto: cdResumenTexto, cdConDia: cdConDia, CAUDAL_CONFIG: CAUDAL_CONFIG
+    cdMensajeAnotado: cdMensajeAnotado, cdPctCategoria: cdPctCategoria, cdTieneCashback: cdTieneCashback, cdResumenTexto: cdResumenTexto, cdConDia: cdConDia, CAUDAL_CONFIG: CAUDAL_CONFIG
   };
 }

@@ -105,6 +105,17 @@ test('cashback estimado: solo crédito, solo categorías con cashback, mes actua
   assert.strictEqual(r.cashback.tope_alcanzado, true);
 });
 
+test('cashback por categoría: cada una con su porcentaje; apagado no suma', () => {
+  const c2 = { ...cfg, categorias_cashback: 'Súper:6, Farmacia:2, Casa' };
+  const movs = [mov('2026-11-02', 'compra', 1000, { categoria: 'Súper' }), mov('2026-11-03', 'compra', 1000, { categoria: 'Farmacia' }), mov('2026-11-04', 'compra', 100, { categoria: 'Casa' })];
+  let r = C.calcularCaudal(movs, c2, '2026-11-10');
+  assert.strictEqual(r.cashback.estimado, 86);
+  assert.strictEqual(C.cdPctCategoria('farmacia', c2), 2);
+  assert.strictEqual(C.cdTieneCashback({ tipo: 'compra', medio: 'credito', categoria: 'Farmacia' }, c2), true);
+  r = C.calcularCaudal(movs, { ...c2, cashback_pct: 0 }, '2026-11-10');
+  assert.strictEqual(r.cashback.estimado, 0);
+});
+
 test('cashback recibido suma al Libre; según destino baja deuda o sube débito', () => {
   const base = [mov('2026-11-01', 'deposito', 1000), mov('2026-11-02', 'compra', 500, { categoria: 'Súper' }), mov('2026-11-03', 'cashback', 30)];
   let r = C.calcularCaudal(base, cfg, '2026-11-04');
