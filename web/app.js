@@ -273,7 +273,8 @@
     $('#libre-sub').innerHTML = sub;
 
     var barra = $('#heroe-barra');
-    var total = p ? p.recibido + Math.max(0, p.sobrante_anterior) : 0;
+    // Lo que tenía para gastar en el periodo = lo ya gastado + lo que queda libre.
+    var total = p ? p.gastado + Math.max(0, r.libre) : 0;
     barra.hidden = vacio || !p || total <= 0;
     if (!barra.hidden) {
       var pct = Math.min(100, Math.round(p.gastado / total * 100));
