@@ -2,12 +2,12 @@
  * Caudal — API y recordatorios (Google Apps Script, ligado a la hoja de cálculo).
  *
  * Primera vez:
- *   1. Ejecuta la función `instalar` (crea pestañas, clave secreta y recordatorio diario).
+ *   1. Ejecuta la función "instalar" (crea pestañas, clave secreta y recordatorio diario).
  *   2. Implementar → Nueva implementación → Aplicación web
  *        Ejecutar como: Yo · Quién tiene acceso: Cualquier usuario.
  *   3. En la hoja, menú Caudal → "Mostrar enlace para la app".
  *
- * API (todas las llamadas llevan `token`):
+ * API (todas las llamadas llevan "token"):
  *   GET  ?accion=estado                → todo para la app (resumen, movimientos, config)
  *   GET  ?accion=resumen               → resumen corto (widget). &formato=texto para texto plano
  *   GET  ?accion=agregar&monto=..&...  → anota un movimiento (para Atajos de iPhone)
@@ -39,6 +39,8 @@ function instalar() {
     cfg.getRange(1, 1, 1, 3).setValues([['clave', 'valor', 'qué es']]).setFontWeight('bold');
     cfg.setFrozenRows(1);
   }
+  // valores como texto: así "5,2,0" o la clave no se convierten en fecha/número
+  cfg.getRange('B:B').setNumberFormat('@');
   var actual = leerConfigCruda_();
   var filas = [];
   if (!actual.token) filas.push(['token', Utilities.getUuid().replace(/-/g, '').slice(0, 24), 'Clave secreta de la API. No la compartas fuera de la familia.']);

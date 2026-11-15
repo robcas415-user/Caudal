@@ -4,7 +4,7 @@
  * Este mismo archivo se usa en dos lugares:
  *   1. En Apps Script (Calculos.gs), para que la API calcule el estado.
  *   2. En la app web (web/calculos.js, copia idéntica), para el modo demo.
- * Si lo cambias, corre `npm run sync` para que web/calculos.js quede igual.
+ * Si lo cambias, corre "npm run sync" para que web/calculos.js quede igual.
  *
  * Fechas: siempre texto 'AAAA-MM-DD'. Montos: números positivos en pesos.
  *
@@ -157,7 +157,7 @@ function cdSiguienteCorte(corte, diaCorte) {
   return cdConDia(p.y, p.m + 1, diaCorte);
 }
 
-/** Fecha límite de pago del estado de cuenta que cortó en `corte`. */
+/** Fecha límite de pago del estado de cuenta que cortó en "corte". */
 function cdLimiteDe(corte, cfg) {
   if (cfg.dias_para_pagar !== '' && !isNaN(cfg.dias_para_pagar)) return cdSumarDias(corte, Number(cfg.dias_para_pagar));
   var p = cdPartes(corte);
