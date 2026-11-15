@@ -249,7 +249,7 @@
     pintarHeroe(r, vacio);
     pintarAvisos(r, vacio);
     pintarBienvenida(vacio);
-    ['#tarjeta-credito', '#duo', '#grupo-fechas', '#grupo-periodo', '#grupo-recientes'].forEach(function (s) { $(s).hidden = vacio; });
+    ['#tarjeta-credito', '#fila-debito', '#grupo-fechas', '#grupo-periodo', '#grupo-recientes'].forEach(function (s) { $(s).hidden = vacio; });
     $('#fila-cashback').hidden = vacio || !cbActivo();
     if (!vacio) {
       pintarTarjeta(r, cfg);
@@ -392,6 +392,7 @@
       html += '<p class="tc-etq">' + (vencido ? 'Pago vencido' : 'Toca pagar') + '</p>' +
         '<p class="tc-monto num">' + montoHtml(t.por_pagar) + '</p>' +
         '<div class="tc-plazo"><span>' + (vencido ? 'Era el ' : 'Antes del ') + esc(fecha(t.fecha_limite)) + '</span><span class="tc-dias ' + clase + '">' + dias + '</span></div>';
+      if (proximo > 0) html += '<div class="tc-total"><span>Debe en total <b class="num">' + cdPesos(r.deuda_tarjeta) + '</b></span><span>' + pesosSinCentavos(proximo) + ' son del siguiente pago</span></div>';
       if (!t.alcanza_en_debito) html += '<p class="tc-falta">' + ico('warn') + '<span>En débito te faltan <b>' + cdPesos(t.falta_en_debito) + '</b> para este pago.</span></p>';
     } else if (r.deuda_tarjeta > 0) {
       // Nada vencido; lo comprado desde el corte se paga en el siguiente estado de cuenta.
@@ -413,34 +414,23 @@
     } else { el.removeAttribute('role'); el.removeAttribute('tabindex'); el.onclick = null; }
   }
 
-  /** Tus dos cuentas lado a lado: lo que hay en débito y lo que debe la tarjeta. Débito − tarjeta = Libre. */
+  /** Débito en una fila: lo que deberías ver en DiDi y cuánto de eso es para la tarjeta. Al tocar, Cuadrar. */
   function pintarCuentas(r) {
-    var t = r.tarjeta, html;
-    html = '<span class="mosaico-ico">' + ico('wallet') + '</span><p class="mosaico-etq">Deberías ver en DiDi débito</p><p class="mosaico-monto num">' + montoHtml(r.saldo_debito) + '</p>';
+    var t = r.tarjeta, nota, barra = '';
     if (r.deuda_tarjeta > 0 && r.saldo_debito > 0) {
       var parte = Math.min(100, Math.round(r.deuda_tarjeta / r.saldo_debito * 100));
-      html += '<div class="mini-pista" aria-hidden="true"><span style="width:' + parte + '%;background:var(--amber)"></span><span style="width:' + (100 - parte) + '%;background:var(--mint)"></span></div>';
+      barra = '<span class="fdb-pista" aria-hidden="true"><span style="width:' + parte + '%;background:var(--amber)"></span><span style="width:' + (100 - parte) + '%;background:var(--mint)"></span></span>';
     }
-    if (t.por_pagar > 0 && !t.alcanza_en_debito) html += '<p class="mosaico-nota mal">Faltan <b>' + cdPesos(t.falta_en_debito) + '</b> para pagar la tarjeta</p>';
-    else if (r.deuda_tarjeta > 0) html += '<p class="mosaico-nota"><b>' + pesosSinCentavos(Math.min(r.deuda_tarjeta, Math.max(0, r.saldo_debito))) + '</b> es para la tarjeta</p>';
-    else html += '<p class="mosaico-nota">Nada apartado para la tarjeta</p>';
-    html += '<span class="mosaico-accion">Cuadrar ' + ico('chevron') + '</span>';
-    var deb = $('#mosaico-debito'); deb.className = 'mosaico debito tocable'; deb.innerHTML = html;
-    deb.setAttribute('role', 'button'); deb.setAttribute('tabindex', '0'); deb.setAttribute('aria-label', 'Cuadrar el débito con DiDi');
-    deb.onclick = function () { abrirForm('otro', null, { clase: 'ajuste' }); };
-
-    var despues = cdRedondear(Math.max(0, r.deuda_tarjeta - t.por_pagar));
-    html = '<span class="mosaico-ico">' + ico('card') + '</span><p class="mosaico-etq">Debe en total la tarjeta</p><p class="mosaico-monto num">' + montoHtml(r.deuda_tarjeta) + '</p>';
-    if (r.deuda_tarjeta > 0 && t.por_pagar > 0) {
-      var p1 = Math.min(100, Math.round(t.por_pagar / r.deuda_tarjeta * 100));
-      html += '<div class="mini-pista" aria-hidden="true"><span style="width:' + p1 + '%;background:var(--amber)"></span><span style="width:' + (100 - p1) + '%;background:var(--lime)"></span></div>' +
-        '<p class="mosaico-nota"><b>' + pesosSinCentavos(despues) + '</b> son del siguiente pago</p>';
-    } else if (r.deuda_tarjeta > 0) html += '<p class="mosaico-nota">Todo es del siguiente pago</p>';
-    else html += '<p class="mosaico-nota">Sin deuda</p>';
-    html += '<span class="mosaico-accion">Cuadrar ' + ico('chevron') + '</span>';
-    var tj = $('#mosaico-tarjeta'); tj.className = 'mosaico deuda tocable'; tj.innerHTML = html;
-    tj.setAttribute('role', 'button'); tj.setAttribute('tabindex', '0'); tj.setAttribute('aria-label', 'Cuadrar la deuda de la tarjeta con DiDi');
-    tj.onclick = function () { abrirForm('otro', null, { clase: 'deuda' }); };
+    if (t.por_pagar > 0 && !t.alcanza_en_debito) nota = '<span class="mal">Faltan <b>' + cdPesos(t.falta_en_debito) + '</b> para pagar la tarjeta</span>';
+    else if (r.deuda_tarjeta > 0) nota = '<b>' + pesosSinCentavos(Math.min(r.deuda_tarjeta, Math.max(0, r.saldo_debito))) + '</b> es para la tarjeta';
+    else nota = 'Todo es libre';
+    var el = $('#fila-debito');
+    el.className = 'fila-cashback fila-debito tocable';
+    el.innerHTML = '<span class="fcb-ico">' + ico('wallet') + '</span>' +
+      '<span class="fcb-txt"><small>Deberías ver en DiDi débito</small><b class="num">' + montoHtml(r.saldo_debito) + '</b>' + barra + '<small class="fdb-nota">' + nota + '</small></span>' +
+      '<span class="tarjeta-accion">Cuadrar ' + ico('chevron') + '</span>';
+    el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0'); el.setAttribute('aria-label', 'Cuadrar el débito con DiDi');
+    el.onclick = function () { abrirForm('otro', null, { clase: 'ajuste' }); };
   }
 
   /** Línea de tiempo: lo que viene, en orden, con cuántos días faltan. */
@@ -512,7 +502,7 @@
 
   /** Este mes: lo que entró y salió en el mes de calendario. Termina en el mismo Libre de arriba. */
   function resumenMes(r, cfg) {
-    var inicio = r.hoy.slice(0, 8) + '01', m = { inicio: inicio, recibido: 0, gastado: 0, credito: 0, debito: 0, otros: 0, cats: {} };
+    var inicio = r.hoy.slice(0, 8) + '01', m = { inicio: inicio, recibido: 0, gastado: 0, credito: 0, debito: 0, otros: 0, otrosMas: 0, otrosMenos: 0, cats: {} };
     estado.movimientos.forEach(function (x) {
       if (x.fecha < inicio || x.fecha > r.hoy) return;
       var monto = cdRedondear(x.monto), e = cdEfecto(x, cfg);
@@ -521,9 +511,9 @@
         m.gastado += monto;
         if (x.medio === 'debito') m.debito += monto; else m.credito += monto;
         var c = x.categoria || 'Otro'; m.cats[c] = cdRedondear((m.cats[c] || 0) + monto);
-      } else m.otros += e.libre;
+      } else { m.otros += e.libre; if (e.libre > 0) m.otrosMas += e.libre; else m.otrosMenos -= e.libre; }
     });
-    ['recibido', 'gastado', 'credito', 'debito', 'otros'].forEach(function (k) { m[k] = cdRedondear(m[k]); });
+    ['recibido', 'gastado', 'credito', 'debito', 'otros', 'otrosMas', 'otrosMenos'].forEach(function (k) { m[k] = cdRedondear(m[k]); });
     // Lo que había al empezar el mes = lo que queda menos lo que pasó en el mes; así siempre cuadra.
     m.antes = cdRedondear(r.libre - m.recibido + m.gastado - m.otros);
     return m;
@@ -532,11 +522,25 @@
   function pintarPeriodo(r, cfg) {
     var g = $('#grupo-periodo'), m = resumenMes(r, cfg);
     var nombreMes = new Date(Number(m.inicio.slice(0, 4)), Number(m.inicio.slice(5, 7)) - 1, 1).toLocaleDateString('es-MX', { month: 'long' });
-    var abierto = g.querySelector('.desplegable.abierto') != null;
     g.innerHTML = '';
     var verCompras = h('button', { class: 'grupo-link', type: 'button', text: 'Ver compras', onclick: function () { filtro = 'compra'; mesMov = null; mostrarVista('movimientos'); pintarMovimientos(); } });
     g.appendChild(h('div', { class: 'grupo-cabeza' }, [h('h2', { class: 'grupo-titulo', text: 'Este mes' }), m.gastado ? verCompras : null]));
     var caja = h('div', { class: 'lista-ios mes-caja' });
+
+    // Arriba, la cuenta del mes en una línea: lo que había + lo que entró − lo que salió = lo que queda.
+    var entro = cdRedondear(m.recibido + m.otrosMas), salio = cdRedondear(m.gastado + m.otrosMenos);
+    var redondo = function (n) { return '$' + Math.round(Math.abs(n)).toLocaleString('es-MX'); }; // resumen: sin centavos
+    var celda = function (etq, valor, clase) { return '<div class="mes-celda ' + (clase || '') + '"><small>' + etq + '</small><b class="num">' + valor + '</b></div>'; };
+    var flujo = h('div', { class: 'mes-flujo', html:
+      celda('Entró', '+' + redondo(entro), 'mas') +
+      celda('Salió', '−' + redondo(salio), 'menos') +
+      celda('Te queda', (r.libre < 0 ? '−' : '') + redondo(r.libre), r.libre < 0 ? 'neg' : 'queda') });
+    caja.appendChild(flujo);
+    var detalle = [];
+    if (m.antes) detalle.push((m.antes > 0 ? 'Empezaste el mes con ' : 'Empezaste el mes debiendo ') + pesosSinCentavos(Math.abs(m.antes)));
+    if (m.credito && m.debito) detalle.push('compras: ' + pesosSinCentavos(m.credito) + ' con tarjeta y ' + pesosSinCentavos(m.debito) + ' con débito');
+    if (m.otrosMas || m.otrosMenos) detalle.push('incluye saldos y ajustes que anotaste');
+    if (detalle.length) { var d = detalle.join(' · '); caja.appendChild(h('p', { class: 'mes-detalle', text: d.charAt(0).toUpperCase() + d.slice(1) + '.' })); }
 
     var cats = Object.keys(m.cats).sort(function (a, b) { return m.cats[b] - m.cats[a]; });
     if (cats.length) {
@@ -551,30 +555,8 @@
       caja.appendChild(lista);
       requestAnimationFrame(function () { $$('[data-w]', lista).forEach(function (b) { b.style.clipPath = 'inset(0 ' + (100 - Number(b.dataset.w)) + '% 0 0 round 99px)'; }); });
     } else {
-      caja.appendChild(h('p', { class: 'mes-vacio', text: 'Aún no hay compras en ' + nombreMes + '.' }));
+      caja.appendChild(h('p', { class: 'mes-vacio', text: 'Sin compras en ' + nombreMes + ' todavía. Aquí verás en qué se va el dinero.' }));
     }
-
-    // La cuenta del mes (de dónde sale el Libre), plegada: se abre al tocar.
-    var fila = function (a, b, clase, claseValor) { return '<div class="fila ' + (clase || '') + '"><span class="fila-txt">' + a + '</span><span class="fila-valor num ' + (claseValor || '') + '">' + b + '</span></div>'; };
-    var signo = function (n) { return (n < 0 ? '− ' : '+ ') + cdPesos(Math.abs(n)); };
-    var html = '';
-    if (m.antes !== 0) html += fila(m.antes > 0 ? 'Al empezar el mes' : 'Debías al empezar', signo(m.antes));
-    html += fila('Recibiste', signo(m.recibido));
-    html += fila('Gastaste', signo(-m.gastado));
-    if (m.credito && m.debito) {
-      html += fila('Con tarjeta', cdPesos(m.credito), 'fila-sangria');
-      html += fila('Con débito', cdPesos(m.debito), 'fila-sangria');
-    }
-    if (m.otros) html += fila(m.otros < 0 ? 'Deudas y ajustes' : 'Cashback y ajustes', signo(m.otros));
-    html += fila('<b>Te queda libre</b>', '<b>' + cdPesos(r.libre) + '</b>', 'fila-total', 'fuerte');
-    var boton = h('button', { type: 'button', class: 'desplegar', 'aria-expanded': abierto ? 'true' : 'false',
-      html: '<span>Cómo llegaste a tu Libre</span>' + ico('chevron-down') });
-    var cuerpo = h('div', { class: 'desplegable' + (abierto ? ' abierto' : '') }, [h('div', { class: 'desplegable-in', html: html })]);
-    boton.onclick = function () {
-      var on = !cuerpo.classList.contains('abierto');
-      cuerpo.classList.toggle('abierto', on); boton.setAttribute('aria-expanded', on ? 'true' : 'false');
-    };
-    caja.appendChild(boton); caja.appendChild(cuerpo);
     g.appendChild(caja);
   }
 

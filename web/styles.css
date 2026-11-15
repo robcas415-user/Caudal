@@ -1120,3 +1120,28 @@ b, strong { font-weight: 600; }
 /* Al presionar, la sombra se acerca: el botón "baja" a la superficie. */
 .accion:active .accion-ico, .tabbar-mas:active { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2), 0 1px 2px rgba(0, 0, 0, .4), 0 4px 10px -6px rgba(0, 0, 0, .6); }
 .accion-principal:active .accion-ico, .tabbar-mas:active { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), 0 1px 2px rgba(0, 0, 0, .4), 0 0 18px 0 rgba(63, 224, 162, .22); }
+
+/* Débito en fila */
+.fila-debito .fcb-ico { background: var(--blue-soft); color: var(--blue); }
+.fila-debito .fcb-txt b { color: var(--text); }
+.fila-debito .fcb-txt b .cent { color: var(--text-3); }
+.fdb-pista { display: flex; height: 4px; border-radius: 99px; overflow: hidden; background: var(--fill-2); margin: 7px 0 5px; max-width: 220px; }
+.fdb-pista span { display: block; height: 100%; }
+.fdb-nota b { color: var(--text-2); font-weight: 600; }
+.fdb-nota .mal, .fdb-nota .mal b { color: var(--red); }
+/* Deuda total dentro de la tarjeta */
+.tc-total { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 14px; padding-top: 12px; border-top: .5px solid rgba(255, 255, 255, .1); font-size: 13px; color: var(--text-3); }
+.tc-total b { color: var(--text); font-weight: 600; }
+/* Este mes compacto */
+.mes-flujo { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 14px 16px 12px; gap: 8px; }
+.mes-celda small { display: block; font-size: 13px; color: var(--text-3); }
+.mes-celda b { display: block; margin-top: 2px; font-size: 19px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap; }
+.mes-celda + .mes-celda { border-left: .5px solid var(--sep); padding-left: 12px; }
+.mes-celda.mas b { color: var(--mint); }
+.mes-celda.queda b { color: var(--text); }
+.mes-celda.neg b { color: var(--red); }
+.mes-detalle { margin: 0; padding: 0 16px 12px; font-size: 13px; line-height: 1.35; color: var(--text-3); }
+.mes-caja .cats { border-top: .5px solid var(--sep); padding-top: 14px; }
+.mes-vacio { border-top: .5px solid var(--sep); font-size: 14px; }
+.fcb-txt .fdb-nota b { display: inline; font-size: inherit; line-height: inherit; letter-spacing: 0; font-weight: 600; color: var(--text-2); }
+.fcb-txt .fdb-nota .mal b { color: var(--red); }
