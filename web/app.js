@@ -10,7 +10,7 @@
   function guardar(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
 
   var estado = null;          // respuesta de accion=estado
-  var filtro = 'todos', mesMov = null;
+  var filtro = 'todos', mesMov = null, animarLista = false;
   var cargando = false;
 
   /* ===================== conexión ===================== */
@@ -610,8 +610,8 @@
     var ant = h('button', { type: 'button', class: 'mes-flecha', 'aria-label': 'Mes anterior', html: ico('chevron') });
     var sig = h('button', { type: 'button', class: 'mes-flecha', 'aria-label': 'Mes siguiente', html: ico('chevron') });
     ant.disabled = mesMov <= primero; sig.disabled = mesMov >= hoyMes;
-    ant.onclick = function () { mesMov = mesMover(mesMov, -1); filtro = 'todos'; pintarMovimientos(); };
-    sig.onclick = function () { mesMov = mesMover(mesMov, 1); filtro = 'todos'; pintarMovimientos(); };
+    ant.onclick = function () { mesMov = mesMover(mesMov, -1); filtro = 'todos'; animarLista = true; pintarMovimientos(); };
+    sig.onclick = function () { mesMov = mesMover(mesMov, 1); filtro = 'todos'; animarLista = true; pintarMovimientos(); };
     cont.appendChild(h('div', { class: 'mes-nav' }, [ant, h('h2', { class: 'mes-nombre', text: nombreMes(mesMov) }), sig]));
 
     // Resumen del mes (y filtro)
@@ -623,21 +623,30 @@
       else if (m.tipo === 'pago_tarjeta') { t.pago_tarjeta += n; t.nPago++; }
     });
     var veces = function (n, uno, varios) { return n === 1 ? '1 ' + uno : n + ' ' + varios; };
+    var ICO_T = { compra: 'cart', deposito: 'arrow-down', pago_tarjeta: 'card' };
     var tile = function (tipo, etq, monto, nota, tono) {
-      var b = h('button', { type: 'button', class: 'resumen-tile ' + tono + (filtro === tipo ? ' activo' : '') + (monto ? '' : ' cero'), 'aria-pressed': filtro === tipo ? 'true' : 'false',
-        html: '<span class="rt-etq">' + etq + '</span><span class="rt-monto num">' + pesosSinCentavos(Math.round(monto)) + '</span><span class="rt-nota">' + nota + '</span>' });
-      b.onclick = function () { filtro = filtro === tipo ? 'todos' : tipo; pintarMovimientos(); };
+      var on = filtro === tipo;
+      var b = h('button', { type: 'button', class: 'resumen-tile ' + tono + (on ? ' activo' : '') + (monto ? '' : ' cero'), 'aria-pressed': on ? 'true' : 'false',
+        'aria-label': (on ? 'Dejar de filtrar ' : 'Ver solo ') + etq.toLowerCase(),
+        html: '<span class="rt-cabeza"><span class="rt-ico">' + ico(ICO_T[tipo]) + '</span><span class="rt-etq">' + etq + '</span>' +
+          '<span class="rt-ver" aria-hidden="true">' + ico(on ? 'x' : 'chevron-down') + '</span></span>' +
+          '<span class="rt-monto num">' + pesosSinCentavos(Math.round(monto)) + '</span><span class="rt-nota">' + nota + '</span>' });
+      b.onclick = function () { filtro = on ? 'todos' : tipo; animarLista = true; pintarMovimientos(); };
       return b;
     };
     var notaGasto = t.nCompra ? (t.debito && t.credito ? 'Tarjeta ' + pesosSinCentavos(Math.round(t.credito)) + ' · Débito ' + pesosSinCentavos(Math.round(t.debito)) : veces(t.nCompra, 'compra', 'compras')) : 'Sin compras';
-    cont.appendChild(h('div', { class: 'resumen-movs' }, [
+    var primeraVez = !leer('caudal.pistaFiltro');
+    if (primeraVez) guardar('caudal.pistaFiltro', 1);
+    cont.appendChild(h('div', { class: 'resumen-movs' + (filtro !== 'todos' ? ' hay-filtro' : '') + (primeraVez ? ' pista' : '') }, [
       tile('compra', 'Gastaste', t.compra, notaGasto, 'rt-gasto'),
       h('div', { class: 'resumen-fila' }, [
         tile('deposito', 'Recibiste', t.deposito, t.nDep ? veces(t.nDep, 'vez', 'veces') : 'Nada', 'rt-recibido'),
-        tile('pago_tarjeta', 'Pagaste tarjeta', t.pago_tarjeta, t.nPago ? veces(t.nPago, 'pago', 'pagos') : 'Sin pagos', 'rt-pago')
+        tile('pago_tarjeta', 'Pagaste', t.pago_tarjeta, t.nPago ? veces(t.nPago, 'pago', 'pagos') + ' a tarjeta' : 'Nada a la tarjeta', 'rt-pago')
       ])
     ]));
 
+    var lista0 = h('div', { class: 'movs-lista' + (animarLista ? ' cambia-lista' : '') }); animarLista = false;
+    cont.appendChild(lista0); cont = lista0;
     var NOMBRE_F = { compra: 'compras', deposito: 'dinero recibido', pago_tarjeta: 'pagos a la tarjeta' };
     var movs = delMes.filter(function (m) { return filtro === 'todos' || m.tipo === filtro; });
     if (filtro !== 'todos') {

@@ -789,3 +789,22 @@ b, strong { font-weight: 600; }
 .filtro-quitar { color: var(--mint); font-weight: 600; font-size: 14px; padding: 8px 0 8px 12px; }
 @media (prefers-reduced-motion: reduce) { .resumen-tile:active, .mes-flecha:active { transform: none; } }
 .resumen-tile.cero .rt-monto { color: var(--text-3); }
+/* Totales que filtran: ícono del tipo (mismo color que sus filas) + flecha que invita a abrir. */
+.rt-cabeza { display: flex; align-items: center; gap: 8px; width: 100%; margin-bottom: 6px; }
+.rt-ico { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; flex: none; background: var(--fill); color: var(--text-2); }
+.rt-ico .ico { width: 15px; height: 15px; }
+.rt-gasto .rt-ico { background: var(--mint-soft); color: var(--mint); }
+.rt-recibido .rt-ico { background: rgba(212, 242, 106, .16); color: var(--lime); }
+.rt-cabeza .rt-etq { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rt-ver { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; flex: none; color: var(--text-3); transition: background .2s ease, color .2s ease; }
+.rt-ver .ico { width: 16px; height: 16px; stroke-width: 2.2; }
+.resumen-tile.activo .rt-ver { background: var(--mint); color: var(--mint-ink); }
+.resumen-tile.activo .rt-ver .ico { width: 13px; height: 13px; stroke-width: 2.6; }
+/* Con filtro, los otros totales pasan a segundo plano. */
+.resumen-movs.hay-filtro .resumen-tile:not(.activo) { opacity: .5; }
+.resumen-tile { transition: transform var(--t-fast) var(--ease-out), border-color .2s ease, background .2s ease, opacity .2s ease; }
+/* Primera visita: las flechas se asoman una vez para enseñar que se puede tocar. */
+.resumen-movs.pista .rt-ver { animation: asomar 1.4s var(--ease-out) .6s 2; }
+@keyframes asomar { 0%, 60%, 100% { transform: none; background: transparent; } 25% { transform: translateY(3px); background: var(--mint-soft); color: var(--mint); } }
+.movs-lista.cambia-lista { animation: fundir .22s var(--ease-out); }
+@media (prefers-reduced-motion: reduce) { .resumen-movs.pista .rt-ver { animation: none; } .movs-lista.cambia-lista { animation: fundir-solo .2s ease; } }
