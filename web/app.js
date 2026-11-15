@@ -634,7 +634,7 @@
     var cont = h('div', { class: 'chips', role: 'radiogroup', 'aria-label': '¿De qué fue?' });
     var conCb = cdLista(estado.config.categorias_cashback);
     cdLista(estado.config.categorias).forEach(function (c) {
-      var b = h('button', { type: 'button', class: 'chip' + (c === valor ? ' activo' : ''), role: 'radio', 'aria-checked': c === valor ? 'true' : 'false',
+      var b = h('button', { type: 'button', class: 'chip' + (c === valor ? ' activo' : ''), role: 'radio', 'aria-checked': c === valor ? 'true' : 'false', 'data-cat': c,
         html: ico(icoCategoria(c)) + esc(c) + (conCb.indexOf(c) >= 0 ? ' <span class="chip-cb">' + esc(estado.config.cashback_pct) + '%</span>' : '') });
       b.addEventListener('click', function () {
         oculto.value = c;
@@ -645,6 +645,38 @@
     });
     setTimeout(function () { var a = $('.chip.activo', cont); if (a && a.scrollIntoView) a.scrollIntoView({ inline: 'center', block: 'nearest' }); }, 60);
     return h('div', { class: 'hoja-seccion' }, [cont, oculto]);
+  }
+
+  /** Lugares donde ya compró: un toque llena "Dónde" y la categoría. */
+  function lugaresRecientes() {
+    var vistos = {}, lista = [];
+    estado.movimientos.forEach(function (m) {
+      var d = String(m.descripcion || '').trim();
+      if (m.tipo !== 'compra' || !d || vistos[d.toLowerCase()]) return;
+      vistos[d.toLowerCase()] = 1;
+      lista.push({ d: d, c: m.categoria });
+    });
+    lista = lista.slice(0, 8);
+    if (!lista.length) return null;
+    var cont = h('div', { class: 'chips', 'aria-label': 'Lugares recientes' });
+    lista.forEach(function (l) {
+      var b = h('button', { type: 'button', class: 'chip lugar', html: ico('clock') + esc(l.d) });
+      b.addEventListener('click', function () {
+        var on = !b.classList.contains('activo');
+        $$('.chip.lugar', cont).forEach(function (x) { x.classList.remove('activo'); });
+        var campo = $('#f-descripcion');
+        if (campo) campo.value = on ? l.d : '';
+        if (on) {
+          b.classList.add('activo');
+          var cat = null;
+          $$('.chip[data-cat]').forEach(function (x) { if (x.dataset.cat === l.c) cat = x; });
+          if (cat && !cat.classList.contains('activo')) cat.click();
+        }
+        actualizarNota();
+      });
+      cont.appendChild(b);
+    });
+    return h('div', { class: 'hoja-seccion' }, [h('p', { class: 'hoja-etq', text: 'Lugares recientes' }), cont]);
   }
 
   function detalles(titulo, filas, abierto) {
@@ -703,6 +735,7 @@
       cuerpo.appendChild(h('div', { class: 'hoja-seccion' }, [segmentado('f-medio', [{ v: 'credito', t: 'Tarjeta de crédito' }, { v: 'debito', t: 'Débito' }], mov ? mov.medio : 'credito', actualizarNota)]));
       cuerpo.appendChild(seccionMonto());
       cuerpo.appendChild(chipsCategoria(mov ? mov.categoria : cfg.categoria_default));
+      if (!mov) { var lug = lugaresRecientes(); if (lug) cuerpo.appendChild(lug); }
       cuerpo.appendChild(detalles('Lugar y fecha', [filaDetalle('descripcion', 'Dónde', mov && mov.descripcion, 'Ej. Walmart'), filaDetalle('fecha', 'Fecha', (mov && mov.fecha) || r.hoy, '', 'date')], !!mov));
       monto = mov ? mov.monto : '';
     } else if (tipo === 'deposito') {

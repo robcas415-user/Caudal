@@ -549,6 +549,8 @@ b, strong { font-weight: 600; }
 .chip .ico { width: 18px; height: 18px; }
 .chip:active { transform: scale(.95); }
 .chip.activo { background: var(--mint-soft); border-color: rgba(63, 224, 162, .45); color: var(--mint); }
+.chip.lugar { min-height: 36px; font-size: 14px; }
+.hoja-etq { margin: 0 4px 6px; font-size: 13px; color: var(--text-3); }
 .chip-cb { font-size: 11px; font-weight: 700; color: var(--lime); }
 .chip.sugerencia { color: var(--text); }
 .chip.sugerencia b { font-family: var(--font-num); }
