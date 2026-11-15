@@ -5,151 +5,215 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Caudal</title>
   <meta name="description" content="Cuánto dinero tienes libre, cuándo pagar la tarjeta y tu cashback.">
-  <meta name="theme-color" content="#14614a">
+  <meta name="theme-color" content="#07110d">
+  <meta name="color-scheme" content="dark">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Caudal">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="format-detection" content="telephone=no">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon-192.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- Pantalla de conexión -->
-  <section id="conectar" class="pantalla" hidden>
-    <div class="conectar-caja">
-      <img src="icon-192.png" alt="" width="88" height="88" class="logo">
-      <h1>Caudal</h1>
-      <p class="grande">Para empezar, pega aquí el enlace que te mandaron.</p>
-      <form id="form-conectar">
-        <label for="enlace" class="sr">Enlace</label>
-        <textarea id="enlace" rows="3" placeholder="https://…#api=…&clave=…" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
-        <button class="btn btn-principal" type="submit">Conectar</button>
+  <div class="fondo" aria-hidden="true"></div>
+
+  <!-- ============ Conectar ============ -->
+  <section id="conectar" class="conectar" hidden>
+    <div class="conectar-cuerpo">
+      <div class="conectar-logo"><img src="icon-192.png" alt="" width="84" height="84"></div>
+      <h1 class="conectar-titulo">Caudal</h1>
+      <p class="conectar-sub">Tu dinero claro: cuánto tienes libre, cuándo pagar la tarjeta y cuánto te regresa.</p>
+      <form id="form-conectar" class="conectar-form">
+        <label for="enlace" class="etiqueta-campo">Pega el enlace que te mandaron</label>
+        <textarea id="enlace" rows="3" placeholder="https://caudal…#api=…&clave=…" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
+        <p class="error-texto" id="conectar-error" hidden></p>
+        <button class="boton boton-primario" type="submit">Conectar</button>
       </form>
-      <p class="error" id="conectar-error" hidden></p>
-      <button class="btn btn-secundario" id="btn-demo" type="button">Ver demostración</button>
+      <button class="boton boton-texto" id="btn-demo" type="button">Ver una demostración</button>
     </div>
   </section>
 
-  <!-- App -->
-  <div id="app" hidden>
-    <header class="encabezado">
-      <div>
-        <p class="saludo" id="saludo">Hola</p>
-        <p class="fecha-hoy" id="fecha-hoy"></p>
+  <!-- ============ App ============ -->
+  <div id="app" class="app" hidden>
+    <header class="barra-sup" id="barra-sup">
+      <div class="barra-sup-txt">
+        <p class="barra-sup-fecha" id="fecha-hoy"></p>
+        <h1 class="titulo-grande" id="titulo-vista">Hola</h1>
       </div>
-      <button class="icono-btn" id="btn-actualizar" aria-label="Actualizar">
-        <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M12 4a8 8 0 0 1 7.4 5H17v2h6V5h-2v2.6A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8Zm8 8a8 8 0 0 1-15.4 3H7v-2H1v6h2v-2.6A10 10 0 0 0 22 12h-2Z"/></svg>
+      <button class="boton-icono" id="btn-actualizar" aria-label="Actualizar">
+        <svg class="ico" aria-hidden="true"><use href="#i-refresh"/></svg>
       </button>
     </header>
-    <div class="banda-demo" id="banda-demo" hidden>Modo demostración: los datos son de ejemplo. <button id="salir-demo" class="enlace">Salir</button></div>
-    <div class="banda-estado" id="banda-estado" hidden></div>
 
-    <main>
+    <div class="barra-mini" id="barra-mini" aria-hidden="true"></div>
+
+    <div class="banda banda-demo" id="banda-demo" hidden>
+      <span>Modo demostración · datos de ejemplo</span>
+      <button class="banda-accion" id="salir-demo">Salir</button>
+    </div>
+    <div class="banda banda-aviso" id="banda-estado" role="status" hidden></div>
+
+    <main class="contenido">
       <!-- INICIO -->
-      <section class="vista" id="vista-inicio">
-        <div class="libre" id="tarjeta-libre">
-          <p class="libre-etiqueta">Libre para gastar</p>
-          <p class="libre-monto" id="libre-monto">—</p>
-          <p class="libre-sub" id="libre-sub"></p>
+      <section class="vista" id="vista-inicio" data-titulo="saludo">
+        <article class="heroe" id="heroe">
+          <div class="heroe-brillo" aria-hidden="true"></div>
+          <div class="heroe-top">
+            <span class="heroe-etiqueta">Libre para gastar</span>
+            <span class="pastilla" id="heroe-estado">—</span>
+          </div>
+          <p class="heroe-monto num" id="libre-monto" aria-live="polite"><span class="esqueleto" style="width:68%">&nbsp;</span></p>
+          <p class="heroe-sub" id="libre-sub">&nbsp;</p>
+          <div class="heroe-barra" id="heroe-barra" hidden>
+            <div class="heroe-barra-pista"><div class="heroe-barra-relleno" id="heroe-barra-relleno"></div></div>
+            <div class="heroe-barra-leyenda"><span id="heroe-gastado"></span><span id="heroe-recibido"></span></div>
+          </div>
+        </article>
+
+        <div class="acciones" role="group" aria-label="Anotar">
+          <button class="accion accion-principal" data-form="compra">
+            <span class="accion-ico"><svg class="ico"><use href="#i-cart"/></svg></span>
+            <span>Anotar compra</span>
+          </button>
+          <button class="accion" data-form="deposito">
+            <span class="accion-ico"><svg class="ico"><use href="#i-arrow-down"/></svg></span>
+            <span>Recibí dinero</span>
+          </button>
+          <button class="accion" data-form="pago_tarjeta">
+            <span class="accion-ico"><svg class="ico"><use href="#i-card"/></svg></span>
+            <span>Pagué tarjeta</span>
+          </button>
+          <button class="accion" data-form="otro" aria-label="Otro movimiento">
+            <span class="accion-ico"><svg class="ico"><use href="#i-ellipsis"/></svg></span>
+            <span>Otro</span>
+          </button>
         </div>
 
-        <ul class="avisos" id="avisos"></ul>
+        <ul class="avisos" id="avisos" aria-label="Avisos"></ul>
 
-        <div class="acciones">
-          <button class="accion accion-compra" data-form="compra">
-            <span class="accion-ico" aria-hidden="true">🛒</span><span>Anotar compra</span>
-          </button>
-          <button class="accion accion-deposito" data-form="deposito">
-            <span class="accion-ico" aria-hidden="true">💵</span><span>Recibí dinero</span>
-          </button>
-          <button class="accion accion-pago" data-form="pago_tarjeta">
-            <span class="accion-ico" aria-hidden="true">💳</span><span>Pagué la tarjeta</span>
-          </button>
-          <button class="accion accion-otro" data-form="otro">
-            <span class="accion-ico" aria-hidden="true">✏️</span><span>Otro</span>
-          </button>
+        <div id="bienvenida" hidden></div>
+
+        <article class="tarjeta-credito" id="tarjeta-credito"></article>
+
+        <div class="duo">
+          <article class="mosaico" id="mosaico-debito"></article>
+          <article class="mosaico" id="mosaico-cashback"></article>
         </div>
 
-        <article class="tarjeta" id="t-tarjeta">
-          <h2>Tarjeta DiDi (crédito)</h2>
-          <div id="t-tarjeta-cuerpo"></div>
-        </article>
+        <section class="grupo" id="grupo-periodo"></section>
 
-        <article class="tarjeta" id="t-debito">
-          <h2>Cuenta DiDi débito</h2>
-          <div id="t-debito-cuerpo"></div>
-        </article>
+        <section class="grupo" id="grupo-recientes"></section>
 
-        <article class="tarjeta" id="t-cashback">
-          <h2>Cashback</h2>
-          <div id="t-cashback-cuerpo"></div>
-        </article>
-
-        <article class="tarjeta" id="t-periodo">
-          <h2>Este periodo</h2>
-          <div id="t-periodo-cuerpo"></div>
-        </article>
-
-        <p class="actualizado" id="actualizado"></p>
+        <p class="pie" id="actualizado"></p>
       </section>
 
       <!-- MOVIMIENTOS -->
-      <section class="vista" id="vista-movimientos" hidden>
-        <h1 class="titulo-vista">Movimientos</h1>
-        <div class="filtros" role="group" aria-label="Filtrar">
-          <button class="chip activo" data-filtro="todos">Todos</button>
-          <button class="chip" data-filtro="compra">Compras</button>
-          <button class="chip" data-filtro="deposito">Dinero recibido</button>
-          <button class="chip" data-filtro="pago_tarjeta">Pagos</button>
+      <section class="vista" id="vista-movimientos" data-titulo="Movimientos" hidden>
+        <div class="segmentado segmentado-scroll" role="tablist" aria-label="Filtrar movimientos" id="filtros">
+          <button class="segmento activo" data-filtro="todos" role="tab" aria-selected="true">Todos</button>
+          <button class="segmento" data-filtro="compra" role="tab">Compras</button>
+          <button class="segmento" data-filtro="deposito" role="tab">Recibido</button>
+          <button class="segmento" data-filtro="pago_tarjeta" role="tab">Pagos</button>
         </div>
         <div id="lista-movs"></div>
       </section>
 
       <!-- AJUSTES -->
-      <section class="vista" id="vista-ajustes" hidden>
-        <h1 class="titulo-vista">Ajustes</h1>
-        <form id="form-config" class="tarjeta"></form>
+      <section class="vista" id="vista-ajustes" data-titulo="Ajustes" hidden>
+        <form id="form-config" novalidate></form>
 
-        <article class="tarjeta">
-          <h2>¿Cómo se calcula el Libre?</h2>
-          <p><b>Libre</b> = dinero que recibiste − compras con tarjeta de crédito (pagadas o no) − gastos con débito (+ cashback).</p>
-          <p>Pagar la tarjeta <b>no cambia</b> el Libre: ese dinero ya estaba apartado desde que hiciste la compra.</p>
-          <p>El saldo que ves en la app de DiDi débito <b>no es</b> lo que puedes gastar: una parte es para pagar la tarjeta.</p>
-        </article>
+        <section class="grupo">
+          <h2 class="grupo-titulo">Cómo se calcula</h2>
+          <div class="lista-ios texto-ios">
+            <p><b>Libre</b> = lo que recibiste − compras con tarjeta (pagadas o no) − gastos con débito + cashback.</p>
+            <p>Pagar la tarjeta <b>no cambia</b> el Libre: ese dinero ya estaba apartado desde que compraste.</p>
+            <p>El saldo de la app de DiDi débito no es lo que puedes gastar: una parte es para la tarjeta.</p>
+          </div>
+        </section>
 
-        <article class="tarjeta">
-          <h2>Conexión</h2>
-          <p class="pequeno" id="info-conexion"></p>
-          <button class="btn btn-secundario" id="btn-copiar-enlace" type="button">Copiar enlace para otro teléfono</button>
-          <button class="btn btn-peligro" id="btn-desconectar" type="button">Desconectar este teléfono</button>
-        </article>
+        <section class="grupo">
+          <h2 class="grupo-titulo">Este teléfono</h2>
+          <div class="lista-ios">
+            <div class="fila"><span class="fila-txt">Conexión</span><span class="fila-valor" id="info-conexion"></span></div>
+            <button class="fila fila-boton" id="btn-copiar-enlace" type="button"><span class="fila-txt acento">Compartir enlace con otro teléfono</span><svg class="ico ico-chico"><use href="#i-share"/></svg></button>
+            <button class="fila fila-boton" id="btn-desconectar" type="button"><span class="fila-txt peligro">Desconectar este teléfono</span></button>
+          </div>
+        </section>
+        <p class="pie">Caudal · tus datos viven en tu hoja de Google</p>
       </section>
     </main>
 
-    <nav class="barra" aria-label="Secciones">
-      <button class="barra-btn activo" data-vista="inicio"><span aria-hidden="true">🏠</span>Inicio</button>
-      <button class="barra-btn" data-vista="movimientos"><span aria-hidden="true">📋</span>Movimientos</button>
-      <button class="barra-btn" data-vista="ajustes"><span aria-hidden="true">⚙️</span>Ajustes</button>
+    <button class="boton boton-primario guardar-flotante" id="btn-guardar-cfg" type="submit" form="form-config">Guardar cambios</button>
+
+    <nav class="tabbar" aria-label="Secciones">
+      <div class="tabbar-pastilla">
+        <button class="tab activo" data-vista="inicio" aria-current="page"><svg class="ico"><use href="#i-house"/></svg><span>Inicio</span></button>
+        <button class="tab" data-vista="movimientos"><svg class="ico"><use href="#i-list"/></svg><span>Movimientos</span></button>
+        <button class="tab" data-vista="ajustes"><svg class="ico"><use href="#i-gear"/></svg><span>Ajustes</span></button>
+      </div>
+      <button class="tabbar-mas" data-form="compra" aria-label="Anotar compra"><svg class="ico"><use href="#i-plus"/></svg></button>
     </nav>
   </div>
 
-  <!-- Hoja para anotar / editar -->
-  <dialog id="hoja" class="hoja">
-    <form id="form-mov" method="dialog" novalidate>
-      <div class="hoja-cabeza">
+  <!-- ============ Hoja (sheet) ============ -->
+  <div class="hoja-capa" id="hoja-capa" hidden>
+    <div class="hoja" id="hoja" role="dialog" aria-modal="true" aria-labelledby="hoja-titulo">
+      <div class="hoja-asa" aria-hidden="true"></div>
+      <header class="hoja-cabeza">
+        <button class="hoja-btn" id="hoja-cerrar" type="button">Cancelar</button>
         <h2 id="hoja-titulo">Anotar</h2>
-        <button type="button" class="icono-btn" id="hoja-cerrar" aria-label="Cerrar">✕</button>
-      </div>
-      <div id="hoja-cuerpo"></div>
-      <p class="error" id="hoja-error" hidden></p>
-      <button class="btn btn-principal" id="hoja-guardar" type="submit">Guardar</button>
-      <button class="btn btn-peligro" id="hoja-borrar" type="button" hidden>Borrar este movimiento</button>
-    </form>
-  </dialog>
+        <span></span>
+      </header>
+      <form id="form-mov" novalidate>
+        <div id="hoja-cuerpo"></div>
+        <p class="error-texto" id="hoja-error" hidden></p>
+        <button class="boton boton-primario" id="hoja-guardar" type="submit">Guardar</button>
+        <button class="boton boton-peligro" id="hoja-borrar" type="button" hidden>Borrar movimiento</button>
+      </form>
+    </div>
+  </div>
 
-  <div class="aviso-flotante" id="toast" role="status" aria-live="polite" hidden></div>
+  <!-- Banner tipo notificación iOS -->
+  <div class="banner" id="toast" role="status" aria-live="polite" hidden>
+    <span class="banner-ico" id="toast-ico"><svg class="ico"><use href="#i-check"/></svg></span>
+    <span class="banner-txt" id="toast-txt"></span>
+  </div>
+
+  <!-- ============ Iconos (trazo 1.8, estilo SF Symbols) ============ -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-cart" viewBox="0 0 24 24"><path d="M3 4h2.2l2.1 10.2a1.6 1.6 0 0 0 1.6 1.3h8.3a1.6 1.6 0 0 0 1.6-1.2L20.5 8H6.1"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/></symbol>
+      <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 4v15M5.5 12.5 12 19l6.5-6.5"/></symbol>
+      <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="M12 20V5M5.5 11.5 12 5l6.5 6.5"/></symbol>
+      <symbol id="i-card" viewBox="0 0 24 24"><rect x="2.8" y="5.5" width="18.4" height="13" rx="2.6"/><path d="M2.8 10h18.4M6.5 15h3.5"/></symbol>
+      <symbol id="i-ellipsis" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="18" cy="12" r="1.2" fill="currentColor"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="i-house" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5H15v-6H9v6H5.5A1.5 1.5 0 0 1 4 19z"/></symbol>
+      <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><circle cx="4.8" cy="6.5" r="1" fill="currentColor"/><circle cx="4.8" cy="12" r="1" fill="currentColor"/><circle cx="4.8" cy="17.5" r="1" fill="currentColor"/></symbol>
+      <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 13.5a7.6 7.6 0 0 0 0-3l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.5A7.4 7.4 0 0 0 7 6.5l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 3l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 2.6 1.5l.4 2.5h4l.4-2.5a7.4 7.4 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4v4.5H15"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+      <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4 2.8 19.5h18.4z"/><path d="M12 10v4"/><circle cx="12" cy="16.8" r=".9" fill="currentColor"/></symbol>
+      <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></symbol>
+      <symbol id="i-gift" viewBox="0 0 24 24"><rect x="3.5" y="9" width="17" height="4" rx="1"/><path d="M5 13v6.5h14V13M12 9v10.5M12 9C10 5 7 5 7 7s3 2 5 2c2 0 5 0 5-2s-3-2-5 2"/></symbol>
+      <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3.5c.6 4.2 3.3 6.9 7.5 7.5-4.2.6-6.9 3.3-7.5 7.5-.6-4.2-3.3-6.9-7.5-7.5 4.2-.6 6.9-3.3 7.5-7.5z"/></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9.5 5.5 6.5 6.5-6.5 6.5"/></symbol>
+      <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9.5 6 6 6-6"/></symbol>
+      <symbol id="i-delete" viewBox="0 0 24 24"><path d="M8.5 5.5H20a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H8.5L3 12z"/><path d="m11.5 9.5 5 5M16.5 9.5l-5 5"/></symbol>
+      <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3.5v11M8 7.5l4-4 4 4M6.5 11H5v9.5h14V11h-1.5"/></symbol>
+      <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18v3"/><rect x="4" y="8" width="16.5" height="11.5" rx="2.5"/><circle cx="16" cy="13.8" r="1.2" fill="currentColor"/></symbol>
+      <symbol id="i-basket" viewBox="0 0 24 24"><path d="M3.5 9.5h17l-1.6 9a1.6 1.6 0 0 1-1.6 1.3H6.7a1.6 1.6 0 0 1-1.6-1.3zM8 9.5l3-5M16 9.5l-3-5"/></symbol>
+      <symbol id="i-pill" viewBox="0 0 24 24"><rect x="2.8" y="8.5" width="18.4" height="7" rx="3.5" transform="rotate(-45 12 12)"/><path d="m9.5 9.5 5 5"/></symbol>
+      <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M5 19c0-8 5-13 14-14 0 9-5 14-13 14z"/><path d="M5 19 13 11"/></symbol>
+      <symbol id="i-fork" viewBox="0 0 24 24"><path d="M7 3.5v7a2 2 0 0 0 4 0v-7M9 10.5v10M16.5 20.5v-17c-2 1-3 3.5-3 7h3"/></symbol>
+      <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3-8.7 8.7z"/><circle cx="8" cy="8" r="1.3"/></symbol>
+      <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+    </defs>
+  </svg>
 
   <script src="config.js"></script>
   <script src="calculos.js"></script>
