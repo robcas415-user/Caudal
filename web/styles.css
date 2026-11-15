@@ -1061,3 +1061,4 @@ b, strong { font-weight: 600; }
   .accion:active .accion-ico { transform: none; }
 }
 .acciones.ya .accion { animation: none; }
+.deuda .mosaico-ico { background: rgba(255, 181, 71, .15); color: var(--amber); }

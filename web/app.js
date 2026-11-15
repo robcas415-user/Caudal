@@ -249,11 +249,13 @@
     pintarHeroe(r, vacio);
     pintarAvisos(r, vacio);
     pintarBienvenida(vacio);
-    ['#tarjeta-credito', '#grupo-periodo', '#grupo-recientes'].forEach(function (s) { $(s).hidden = vacio; });
+    ['#tarjeta-credito', '#duo', '#grupo-fechas', '#grupo-periodo', '#grupo-recientes'].forEach(function (s) { $(s).hidden = vacio; });
     $('#fila-cashback').hidden = vacio || !cbActivo();
     if (!vacio) {
       pintarTarjeta(r, cfg);
+      pintarCuentas(r);
       if (cbActivo()) pintarCashback(r, cfg);
+      pintarFechas(r);
       pintarPeriodo(r, cfg);
       pintarRecientes();
     }
@@ -401,12 +403,6 @@
       html += '<p class="tc-etq">Tarjeta</p><p class="tc-monto ok">' + ico('check') + 'Sin deuda</p>';
       accion = '';
     }
-    // Lo que viene después, dentro de la misma tarjeta (antes vivía repetido en "Próximas fechas").
-    var cuando = function (f) { var n = cdDiasEntre(r.hoy, f); return n === 0 ? 'Hoy' : n === 1 ? 'Mañana' : 'En ' + n + ' días'; };
-    var linea = function (icono, a, b, c) { return '<div class="tc-linea">' + ico(icono) + '<span class="tc-linea-txt"><b>' + a + '</b><small>' + b + '</small></span><span class="tc-linea-der">' + c + '</span></div>'; };
-    html += '<div class="tc-lineas">' + linea('calendar', 'Corte · ' + esc(fecha(t.siguiente_corte, false)), 'Lo que compres después va al siguiente pago', cuando(t.siguiente_corte));
-    if (t.por_pagar > 0 && proximo > 0) html += linea('card', 'Siguiente pago · ' + esc(fecha(lim, false)), 'Lo que llevas desde el corte', '<b class="num">' + pesosSinCentavos(proximo) + '</b>');
-    html += '</div>';
     if (accion) html += '<span class="tarjeta-accion">' + accion + ' ' + ico('chevron') + '</span>';
     var el = $('#tarjeta-credito');
     el.innerHTML = html;
@@ -415,6 +411,59 @@
       el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0'); el.setAttribute('aria-label', 'Anotar un pago a la tarjeta');
       el.onclick = function () { abrirForm('pago_tarjeta'); };
     } else { el.removeAttribute('role'); el.removeAttribute('tabindex'); el.onclick = null; }
+  }
+
+  /** Tus dos cuentas lado a lado: lo que hay en débito y lo que debe la tarjeta. Débito − tarjeta = Libre. */
+  function pintarCuentas(r) {
+    var t = r.tarjeta, html;
+    html = '<span class="mosaico-ico">' + ico('wallet') + '</span><p class="mosaico-etq">Deberías ver en DiDi débito</p><p class="mosaico-monto num">' + montoHtml(r.saldo_debito) + '</p>';
+    if (r.deuda_tarjeta > 0 && r.saldo_debito > 0) {
+      var parte = Math.min(100, Math.round(r.deuda_tarjeta / r.saldo_debito * 100));
+      html += '<div class="mini-pista" aria-hidden="true"><span style="width:' + parte + '%;background:var(--amber)"></span><span style="width:' + (100 - parte) + '%;background:var(--mint)"></span></div>';
+    }
+    if (t.por_pagar > 0 && !t.alcanza_en_debito) html += '<p class="mosaico-nota mal">Faltan <b>' + cdPesos(t.falta_en_debito) + '</b> para pagar la tarjeta</p>';
+    else if (r.deuda_tarjeta > 0) html += '<p class="mosaico-nota"><b>' + pesosSinCentavos(Math.min(r.deuda_tarjeta, Math.max(0, r.saldo_debito))) + '</b> es para la tarjeta</p>';
+    else html += '<p class="mosaico-nota">Nada apartado para la tarjeta</p>';
+    html += '<span class="mosaico-accion">Cuadrar ' + ico('chevron') + '</span>';
+    var deb = $('#mosaico-debito'); deb.className = 'mosaico debito tocable'; deb.innerHTML = html;
+    deb.setAttribute('role', 'button'); deb.setAttribute('tabindex', '0'); deb.setAttribute('aria-label', 'Cuadrar el débito con DiDi');
+    deb.onclick = function () { abrirForm('otro', null, { clase: 'ajuste' }); };
+
+    var despues = cdRedondear(Math.max(0, r.deuda_tarjeta - t.por_pagar));
+    html = '<span class="mosaico-ico">' + ico('card') + '</span><p class="mosaico-etq">Debe en total la tarjeta</p><p class="mosaico-monto num">' + montoHtml(r.deuda_tarjeta) + '</p>';
+    if (r.deuda_tarjeta > 0 && t.por_pagar > 0) {
+      var p1 = Math.min(100, Math.round(t.por_pagar / r.deuda_tarjeta * 100));
+      html += '<div class="mini-pista" aria-hidden="true"><span style="width:' + p1 + '%;background:var(--amber)"></span><span style="width:' + (100 - p1) + '%;background:var(--lime)"></span></div>' +
+        '<p class="mosaico-nota"><b>' + pesosSinCentavos(despues) + '</b> son del siguiente pago</p>';
+    } else if (r.deuda_tarjeta > 0) html += '<p class="mosaico-nota">Todo es del siguiente pago</p>';
+    else html += '<p class="mosaico-nota">Sin deuda</p>';
+    html += '<span class="mosaico-accion">Cuadrar ' + ico('chevron') + '</span>';
+    var tj = $('#mosaico-tarjeta'); tj.className = 'mosaico deuda tocable'; tj.innerHTML = html;
+    tj.setAttribute('role', 'button'); tj.setAttribute('tabindex', '0'); tj.setAttribute('aria-label', 'Cuadrar la deuda de la tarjeta con DiDi');
+    tj.onclick = function () { abrirForm('otro', null, { clase: 'deuda' }); };
+  }
+
+  /** Línea de tiempo: lo que viene, en orden, con cuántos días faltan. */
+  function pintarFechas(r) {
+    var g = $('#grupo-fechas'), t = r.tarjeta, ev = [];
+    if (t.por_pagar > 0) ev.push({ f: t.fecha_limite, ico: 'card', tono: 'pago', t: t.estado === 'vencido' ? 'Pago de la tarjeta (vencido)' : 'Pagar la tarjeta', s: 'Para no pagar intereses', m: t.por_pagar });
+    ev.push({ f: t.siguiente_corte, ico: 'calendar', tono: 'corte', t: 'Corte de la tarjeta', s: 'Lo de después va al siguiente pago' });
+    var lim = limiteSiguiente(r), proximo = cdRedondear(r.deuda_tarjeta - t.por_pagar);
+    if (proximo > 0) ev.push({ f: lim, ico: 'card', tono: 'siguiente', t: t.por_pagar > 0 ? 'Siguiente pago de la tarjeta' : 'Pago de la tarjeta', s: 'Lo que llevas desde el corte', m: proximo });
+    ev = ev.filter(function (e) { return e.f >= r.hoy || e.tono === 'pago'; }).sort(function (a, b) { return a.f < b.f ? -1 : a.f > b.f ? 1 : 0; });
+    g.innerHTML = '';
+    g.appendChild(h('div', { class: 'grupo-cabeza' }, [h('h2', { class: 'grupo-titulo', text: 'Próximas fechas' })]));
+    var lista = h('div', { class: 'lista-ios linea-tiempo' });
+    ev.forEach(function (e) {
+      var d = cdDiasEntre(r.hoy, e.f);
+      var cuando = d < 0 ? 'Venció' : d === 0 ? 'Hoy' : d === 1 ? 'Mañana' : 'En ' + d + ' días';
+      var urg = e.tono === 'pago' && d <= 1 ? ' urgente' : e.tono === 'pago' && d <= 5 ? ' pronto' : '';
+      lista.appendChild(h('div', { class: 'evento ev-' + e.tono, html:
+        '<span class="ev-punto">' + ico(e.ico) + '</span>' +
+        '<span class="ev-txt"><b>' + esc(e.t) + '</b><small>' + esc(fecha(e.f)) + ' · ' + esc(e.s) + '</small></span>' +
+        '<span class="ev-der">' + (e.m != null ? '<b class="num">' + pesosSinCentavos(e.m) + '</b>' : '') + '<span class="ev-cuando' + urg + '">' + cuando + '</span></span>' }));
+    });
+    g.appendChild(lista);
   }
 
   /** Cashback encendido = hay un porcentaje mayor a 0 en Ajustes. Apagado, no aparece en ningún lado. */
