@@ -1511,12 +1511,6 @@
     $('#salir-demo').addEventListener('click', function () { guardar(LS.demo, null); guardar(LS.demoDatos, null); estado = null; if (conexion().clave) iniciarApp(); else mostrarConectar(); });
 
     $$('[data-form]').forEach(function (b) { b.addEventListener('click', function () { abrirForm(b.dataset.form); }); });
-    // Cada acción tiene un gesto propio en su ícono al tocarla (el carrito avanza, la flecha baja…).
-    setTimeout(function () { var ac = $('.acciones'); if (ac) ac.classList.add('ya'); }, 1200); // la cascada de entrada, solo al abrir
-    $$('.accion').forEach(function (b) {
-      b.addEventListener('pointerdown', function () { b.classList.remove('toca'); void b.offsetWidth; b.classList.add('toca'); });
-      b.addEventListener('animationend', function (e) { if (e.animationName.indexOf('acc-') === 0 && e.animationName !== 'acc-entra' && e.animationName !== 'acc-punto') b.classList.remove('toca'); });
-    });
     $$('.tab').forEach(function (b) { b.addEventListener('click', function () { if (vistaActual !== b.dataset.vista) mostrarVista(b.dataset.vista); else window.scrollTo({ top: 0, behavior: 'smooth' }); }); });
     $('#btn-actualizar').addEventListener('click', function () { actualizar(false); });
     $('#form-mov').addEventListener('submit', enviarForm);
