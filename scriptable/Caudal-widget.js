@@ -6,13 +6,26 @@ const API = 'PEGA_AQUI_LA_DIRECCION_DE_LA_API';   // termina en /exec
 const CLAVE = 'PEGA_AQUI_LA_CLAVE';
 const APP = 'https://TU-SITIO.netlify.app';        // la app en Netlify
 // 2. En la pantalla de inicio: mantener presionado → + → Scriptable → elige tamaño
-//    → Editar widget → Script: este. "Al tocar": Abrir URL (opcional; ya abre la app).
+//    → Editar widget → Script: este. Deja "Al tocar" en "Ejecutar script".
+//
+// Al tocar el widget chico se abre el atajo "Anotar gasto" (pregunta el monto).
+// En el mediano, el botón "+ Anotar gasto" abre el atajo y el resto abre la app.
+const ATAJO = 'Anotar gasto';   // nombre exacto del atajo en la app Atajos
+const URL_ATAJO = 'shortcuts://run-shortcut?name=' + encodeURIComponent(ATAJO);
 
 const COLORES = {
-  bien: new Color('#14614a'),
-  bajo: new Color('#a86200'),
-  negativo: new Color('#b42318'),
+  bien: ['#1f6b4f', '#0a221a'],
+  bajo: ['#6a5320', '#1f180b'],
+  negativo: ['#6e2a24', '#200c0b'],
 };
+function fondo(estado) {
+  const c = COLORES[estado] || COLORES.bien;
+  const g = new LinearGradient();
+  g.colors = [new Color(c[0]), new Color(c[1])];
+  g.locations = [0, 1];
+  g.startPoint = new Point(0, 0); g.endPoint = new Point(1, 1);
+  return g;
+}
 
 function pesos(n) {
   const s = Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -42,19 +55,20 @@ async function cargar() {
 async function crear() {
   const datos = await cargar();
   const w = new ListWidget();
-  w.url = APP;
+  const grandeUrl = config.widgetFamily && config.widgetFamily !== 'small';
+  w.url = grandeUrl ? APP : URL_ATAJO;
   w.setPadding(14, 14, 14, 14);
   w.refreshAfterDate = new Date(Date.now() + 30 * 60 * 1000);
   const grande = config.widgetFamily !== 'small';
 
   if (datos.error) {
-    w.backgroundColor = new Color('#555555');
+    w.backgroundColor = new Color('#0f1b16');
     const t = w.addText('Caudal: no se pudo cargar');
     t.textColor = Color.white(); t.font = Font.semiboldSystemFont(14);
     return w;
   }
   const r = datos.r;
-  w.backgroundColor = COLORES[r.estado_libre] || COLORES.bien;
+  w.backgroundGradient = fondo(r.estado_libre);
 
   const et = w.addText('Libre para gastar');
   et.textColor = new Color('#ffffff', 0.9); et.font = Font.mediumSystemFont(grande ? 15 : 13);
@@ -79,6 +93,18 @@ async function crear() {
     const c = w.addText('🎁 Cashback del mes ≈ ' + sinCentavos(r.cashback_estimado));
     c.textColor = new Color('#ffffff', 0.9); c.font = Font.systemFont(13);
   }
+  // Botón para anotar
+  w.addSpacer(grande ? 8 : 6);
+  const boton = w.addStack();
+  boton.backgroundColor = new Color('#3fe0a2');
+  boton.cornerRadius = 12;
+  boton.setPadding(grande ? 7 : 5, 10, grande ? 7 : 5, 10);
+  boton.url = URL_ATAJO;
+  boton.addSpacer();
+  const tb = boton.addText('+ Anotar gasto');
+  tb.textColor = new Color('#03140d'); tb.font = Font.boldSystemFont(grande ? 14 : 12);
+  boton.addSpacer();
+
   if (datos.viejo) {
     const v = w.addText('sin conexión · datos anteriores');
     v.textColor = new Color('#ffffff', 0.7); v.font = Font.systemFont(10);
