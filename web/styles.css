@@ -11,18 +11,18 @@
   /* Superficies */
   --bg: #050d0a;
   --bg-2: #08140f;
-  --surface: #0f1b16;
-  --surface-2: #15241e;
-  --surface-3: #1c2e26;
+  --surface: #101e18;
+  --surface-2: #172820;
+  --surface-3: #1f3229;
   --fill: rgba(220, 255, 238, .07);
   --fill-2: rgba(220, 255, 238, .11);
-  --stroke: rgba(220, 255, 238, .08);
-  --sep: rgba(220, 255, 238, .09);
+  --stroke: rgba(220, 255, 238, .10);
+  --sep: rgba(220, 255, 238, .10);
 
   /* Texto (contraste AA o mejor sobre --surface) */
   --text: #f2f8f5;
-  --text-2: rgba(232, 245, 238, .70);
-  --text-3: rgba(232, 245, 238, .48);
+  --text-2: rgba(232, 245, 238, .76);
+  --text-3: rgba(232, 245, 238, .58);
 
   /* Acentos */
   --mint: #3fe0a2;
@@ -35,8 +35,8 @@
   --amber-soft: rgba(255, 181, 71, .15);
   --red: #ff6b5e;
   --red-soft: rgba(255, 107, 94, .15);
-  --blue: #74b9ff;
-  --blue-soft: rgba(116, 185, 255, .15);
+  --blue: #6ccfe6;
+  --blue-soft: rgba(108, 207, 230, .15);
 
   /* Tipografía */
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -210,7 +210,7 @@ b, strong { font-weight: 600; }
   margin: 14px 0 4px; font-size: clamp(44px, 14vw, 58px); line-height: 1; font-weight: 700; letter-spacing: -.035em; color: #fff;
   white-space: nowrap;
 }
-.heroe-monto .cent { font-size: .48em; letter-spacing: -.01em; color: rgba(255, 255, 255, .55); margin-left: 1px; }
+.heroe-monto .cent { font-size: .48em; letter-spacing: -.01em; color: rgba(255, 255, 255, .62); margin-left: 1px; }
 .heroe-monto .signo { font-size: .6em; vertical-align: .32em; margin-right: 2px; color: rgba(255, 255, 255, .7); font-weight: 600; }
 .heroe-sub { margin: 8px 0 0; color: rgba(255, 255, 255, .82); font-size: 16px; }
 .heroe-sub b { color: #fff; }
@@ -220,7 +220,7 @@ b, strong { font-weight: 600; }
   height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, rgba(255, 255, 255, .55), #fff);
   transition: width .7s var(--ease-out);
 }
-.heroe-barra-leyenda { display: flex; justify-content: space-between; margin-top: 8px; font-size: 13px; color: rgba(255, 255, 255, .7); }
+.heroe-barra-leyenda { display: flex; justify-content: space-between; margin-top: 8px; font-size: 13px; color: rgba(255, 255, 255, .78); }
 
 /* ============================== Acciones rápidas ============================== */
 
