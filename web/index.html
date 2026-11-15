@@ -130,22 +130,18 @@
         <form id="form-config" novalidate></form>
 
         <section class="grupo">
-          <h2 class="grupo-titulo">Cómo se calcula</h2>
-          <div class="lista-ios texto-ios">
-            <div class="formula" aria-label="Libre igual a débito menos deuda de la tarjeta">
-              <span class="formula-item"><small>En DiDi débito</small><b id="fx-debito">—</b></span>
-              <span class="formula-op">−</span>
-              <span class="formula-item"><small>Debe la tarjeta</small><b id="fx-deuda">—</b></span>
-              <span class="formula-op">=</span>
-              <span class="formula-item formula-total"><small>Libre</small><b id="fx-libre">—</b></span>
-            </div>
-            <p>Todo lo que pagas con la tarjeta ya se resta del Libre, aunque la pagues después. Por eso <b>pagar la tarjeta no cambia</b> el Libre: solo pasa dinero del débito a la tarjeta.</p>
-            <p>Si algo no coincide con la app de DiDi, usa <b>Cuadrar</b> en Inicio.</p>
+          <h2 class="grupo-etq">Cómo se calcula el Libre</h2>
+          <div class="lista-ios cuenta-libre" aria-label="Libre es lo que tienes en débito menos lo que debe la tarjeta">
+            <div class="fila"><span class="fila-txt">Tienes en DiDi débito</span><span class="fila-valor num" id="fx-debito">—</span></div>
+            <div class="fila"><span class="fila-txt">Debe la tarjeta</span><span class="fila-valor num" id="fx-deuda">—</span></div>
+            <div class="fila fila-total"><span class="fila-txt"><b>Libre para gastar</b></span><span class="fila-valor num" id="fx-libre">—</span></div>
           </div>
+          <p class="grupo-pie">Lo que compras con la tarjeta se resta del Libre desde ese momento, aunque la pagues después. Por eso pagar la tarjeta no cambia el Libre: solo pasa dinero del débito a la tarjeta.</p>
+          <p class="grupo-pie">Si algo no coincide con la app de DiDi, usa Cuadrar en Inicio.</p>
         </section>
 
         <section class="grupo">
-          <h2 class="grupo-titulo">Este teléfono</h2>
+          <h2 class="grupo-etq">Este teléfono</h2>
           <div class="lista-ios">
             <div class="fila"><span class="fila-txt">Conexión</span><span class="fila-valor" id="info-conexion"></span></div>
             <button class="fila fila-boton" id="btn-copiar-enlace" type="button"><span class="fila-txt acento">Compartir enlace con otro teléfono</span><svg class="ico ico-chico"><use href="#i-share"/></svg></button>

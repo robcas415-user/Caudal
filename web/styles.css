@@ -703,13 +703,6 @@ b, strong { font-weight: 600; }
 .previa-item b { display: block; font-size: 15px; }
 .previa-error { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; color: var(--amber); font-size: 14px; }
 .previa-error .ico { width: 18px; height: 18px; }
-.formula { display: flex; align-items: center; gap: 6px; padding: 6px 0 12px; }
-.formula-item { flex: 1; min-width: 0; background: var(--fill); border-radius: 12px; padding: 8px 10px; }
-.formula-item small { display: block; font-size: 11px; color: var(--text-3); line-height: 1.2; }
-.formula-item b { display: block; font-family: var(--font-num); font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.formula-total { background: var(--mint-soft); }
-.formula-total b { color: var(--mint); }
-.formula-op { color: var(--text-3); font-weight: 600; }
 
 /* ---- Pulido ---- */
 .mosaico.tocable { cursor: pointer; position: relative; transition: transform .15s var(--ease), background .2s; }
@@ -752,3 +745,10 @@ b, strong { font-weight: 600; }
 .campo-unidad:focus-within, .campo-fila > input:focus { box-shadow: 0 0 0 2px var(--mint); }
 .campo-fila input:focus { color: var(--text); }
 .campo-fila.campo-ancho > input { padding: 10px 12px; max-width: none; width: 100%; }
+
+/* Cuenta del Libre en Ajustes: misma lista agrupada que el resto, se lee de arriba abajo como una resta. */
+.cuenta-libre .fila-valor { color: var(--text); }
+.cuenta-libre .fila-total { border-top: 1px solid var(--stroke); }
+.cuenta-libre .fila-total .fila-valor { color: var(--mint); font-weight: 600; }
+.cuenta-libre .fila-total .fila-valor.neg { color: var(--red); }
+.grupo-pie + .grupo-pie { margin-top: 6px; }

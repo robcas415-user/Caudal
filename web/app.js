@@ -266,9 +266,10 @@
     pintarMovimientos();
     pintarConfig();
     if (estado.resumen) {
-      $('#fx-debito').textContent = pesosSinCentavos(Math.round(estado.resumen.saldo_debito));
-      $('#fx-deuda').textContent = pesosSinCentavos(Math.round(estado.resumen.deuda_tarjeta));
-      $('#fx-libre').textContent = pesosSinCentavos(Math.round(estado.resumen.libre));
+      var rr = estado.resumen;
+      $('#fx-debito').textContent = cdPesos(rr.saldo_debito);
+      $('#fx-deuda').textContent = (rr.deuda_tarjeta < 0 ? '+ ' : '− ') + cdPesos(Math.abs(rr.deuda_tarjeta));
+      var fl = $('#fx-libre'); fl.textContent = cdPesos(rr.libre); fl.classList.toggle('neg', rr.libre < 0);
     }
   }
 
