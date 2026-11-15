@@ -11,6 +11,7 @@ const CLAVE = 'PEGA_AQUI_LA_CLAVE';
 //    toca la fila de widgets → Scriptable → elige el rectangular → Script: este.
 //
 // Para anotar gastos se usa el ícono "Anotar" (atajo), que corre sin abrir apps.
+// Tocar el widget lo actualiza al momento (abre Scriptable un instante).
 
 const ESTADOS = {
   bien: { fondo: ['#1f6b4f', '#0a221a'], acento: '#3fe0a2', texto: 'Vas bien' },
@@ -48,11 +49,11 @@ async function cargar() {
     const j = await req.loadJSON();
     if (!j.ok) throw new Error(j.error);
     fm.writeString(cache, JSON.stringify({ r: j.resumen, t: Date.now() }));
-    return { r: j.resumen, viejo: false };
+    return { r: j.resumen, viejo: false, t: Date.now() };
   } catch (e) {
     if (fm.fileExists(cache)) {
       const c = JSON.parse(fm.readString(cache));
-      return { r: c.r || c, viejo: true };
+      return { r: c.r || c, viejo: true, t: c.t };
     }
     return { error: String(e.message || e) };
   }
@@ -151,7 +152,8 @@ async function crear() {
   const datos = await cargar();
   const fam = config.widgetFamily || 'medium';
   const w = new ListWidget();
-  w.refreshAfterDate = new Date(Date.now() + 15 * 60 * 1000);
+  // iOS decide cuándo refrescar (normalmente cada 5–15 min). Pedimos lo más pronto posible.
+  w.refreshAfterDate = new Date(Date.now() + 5 * 60 * 1000);
 
   if (datos.error) {
     if (fam.indexOf('accessory') !== 0) w.backgroundColor = new Color('#0f1b16');
@@ -178,7 +180,12 @@ async function crear() {
 
   if (fam === 'small') chico(w, r, est); else mediano(w, r, est);
 
-  if (datos.viejo) { w.addSpacer(2); texto(w, 'sin conexión · datos anteriores', Font.systemFont(9), BLANCO(0.6)); }
+  // Hora de la última actualización: así se sabe si las cifras están al día.
+  w.addSpacer(3);
+  const pie = w.addStack(); pie.centerAlignContent();
+  const hora = datos.t ? new Date(datos.t) : new Date();
+  const df = new DateFormatter(); df.locale = 'es_MX'; df.dateFormat = 'h:mm a';
+  texto(pie, (datos.viejo ? 'Sin conexión · ' : 'Actualizado ') + df.string(hora).replace('a. m.', 'a.m.').replace('p. m.', 'p.m.'), Font.mediumSystemFont(9), BLANCO(datos.viejo ? 0.75 : 0.5));
   return w;
 }
 
