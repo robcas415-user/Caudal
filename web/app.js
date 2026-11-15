@@ -1499,7 +1499,16 @@
     }
   }
 
+  // La lente de vidrio (sólida, no se deforma) se desliza hasta la pestaña elegida.
+  // Se mueve en cuanto el dedo toca (pointerdown), antes de pintar la vista nueva, para que no haya retraso.
+  function moverLente(v) {
+    var lente = $('.tab-lente');
+    if (!lente) { lente = document.createElement('span'); lente.className = 'tab-lente'; lente.setAttribute('aria-hidden', 'true'); $('.tabbar-pastilla').prepend(lente); }
+    lente.style.setProperty('--i', ['inicio', 'movimientos', 'ajustes'].indexOf(v));
+  }
+
   function mostrarVista(v) {
+    moverLente(v);
     vistaActual = v;
     ['inicio', 'movimientos', 'ajustes'].forEach(function (x) {
       var el = $('#vista-' + x);
@@ -1511,11 +1520,6 @@
     // La primera vez entra con calma; al cambiar de pestaña (muchas veces al día) solo un fundido corto.
     vista.classList.add(mostrarVista._ya ? 'cambia' : 'entra');
     mostrarVista._ya = true;
-    // La lente de vidrio (sólida, no se deforma) se desliza con resorte hasta la pestaña elegida.
-    var lente = $('.tab-lente');
-    if (!lente) { lente = document.createElement('span'); lente.className = 'tab-lente'; lente.setAttribute('aria-hidden', 'true'); $('.tabbar-pastilla').prepend(lente); }
-    var idx = ['inicio', 'movimientos', 'ajustes'].indexOf(v);
-    lente.style.setProperty('--i', idx);
     $$('.tab').forEach(function (b) {
       var on = b.dataset.vista === v;
       b.classList.toggle('activo', on);
@@ -1573,6 +1577,7 @@
     ['pointerup', 'pointercancel', 'scroll'].forEach(function (t) { window.addEventListener(t, apagar, { passive: true }); });
     setTimeout(function () { var ac = $('.acciones'); if (ac) ac.classList.add('ya'); }, 1200); // la cascada de entrada, solo al abrir
     $$('[data-form]').forEach(function (b) { b.addEventListener('click', function () { abrirForm(b.dataset.form); }); });
+    $$('.tab').forEach(function (b) { b.addEventListener('pointerdown', function () { moverLente(b.dataset.vista); }, { passive: true }); });
     $$('.tab').forEach(function (b) { b.addEventListener('click', function () { if (vistaActual !== b.dataset.vista) mostrarVista(b.dataset.vista); else window.scrollTo({ top: 0, behavior: 'smooth' }); }); });
     $('#btn-actualizar').addEventListener('click', function () { actualizar(false); });
     $('#form-mov').addEventListener('submit', enviarForm);

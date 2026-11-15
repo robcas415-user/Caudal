@@ -1594,3 +1594,7 @@ body::before {
 .tab { transition: color .3s var(--ease-out), transform .3s var(--resorte, var(--ease)); }
 .seg-ficha { transition: transform .5s var(--resorte, var(--ease)), opacity .2s ease; }
 .seg-ficha.llega { animation: none; }
+
+/* v52 · Respuesta inmediata: la lente arranca al tocar y llega en .4 s (antes .55 s) */
+.tab-lente { transition: transform .4s var(--resorte, var(--ease)); will-change: transform; }
+.seg-ficha { transition: transform .38s var(--resorte, var(--ease)), opacity .2s ease; }
