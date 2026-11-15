@@ -8,10 +8,8 @@ const APP = 'https://TU-SITIO.netlify.app';        // la app en Netlify
 // 2. En la pantalla de inicio: mantener presionado → + → Scriptable → elige tamaño
 //    → Editar widget → Script: este. Deja "Al tocar" en "Ejecutar script".
 //
-// Al tocar el widget chico se abre el atajo "Anotar gasto" (pregunta el monto).
-// En el mediano, el botón "+ Anotar gasto" abre el atajo y el resto abre la app.
-const ATAJO = 'Anotar gasto';   // nombre exacto del atajo en la app Atajos
-const URL_ATAJO = 'shortcuts://run-shortcut?name=' + encodeURIComponent(ATAJO);
+// Para anotar gastos, pon junto a este el widget de la app Atajos con "Anotar gasto":
+// ese corre sin abrir ninguna app.
 
 const COLORES = {
   bien: ['#1f6b4f', '#0a221a'],
@@ -55,8 +53,8 @@ async function cargar() {
 async function crear() {
   const datos = await cargar();
   const w = new ListWidget();
-  const grandeUrl = config.widgetFamily && config.widgetFamily !== 'small';
-  w.url = grandeUrl ? APP : URL_ATAJO;
+  // Solo informativo. iOS hace que todo toque en un widget de Scriptable abra Scriptable
+  // primero, así que para anotar usa el widget de la app Atajos ("Anotar gasto").
   w.setPadding(14, 14, 14, 14);
   w.refreshAfterDate = new Date(Date.now() + 30 * 60 * 1000);
   const grande = config.widgetFamily !== 'small';
@@ -111,18 +109,6 @@ async function crear() {
     const c = w.addText('Cashback del mes ' + sinCentavos(r.cashback_estimado));
     c.textColor = new Color('#d4f26a'); c.font = Font.semiboldSystemFont(12);
   }
-
-  // Botón para anotar
-  w.addSpacer(grande ? 8 : 6);
-  const boton = w.addStack();
-  boton.backgroundColor = new Color('#3fe0a2');
-  boton.cornerRadius = 12;
-  boton.setPadding(grande ? 7 : 5, 10, grande ? 7 : 5, 10);
-  boton.url = URL_ATAJO;
-  boton.addSpacer();
-  const tb = boton.addText(grande ? '+  Anotar gasto' : '+ Anotar');
-  tb.textColor = new Color('#03140d'); tb.font = Font.boldSystemFont(grande ? 14 : 12);
-  boton.addSpacer();
 
   if (datos.viejo) {
     const v = w.addText('sin conexión · datos anteriores');
