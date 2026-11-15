@@ -930,3 +930,7 @@ b, strong { font-weight: 600; }
 .segmentado.arrastrando .segmento.activo:not(.bajo-dedo) { color: var(--text-2); }
 @media (prefers-reduced-motion: reduce) { .seg-ficha { transition: opacity .2s ease; } .seg-ficha.llega { animation: none; } }
 .cb-destino { margin-top: 4px; }
+.cb-switch { cursor: pointer; }
+.cb-switch-txt { flex: 1; min-width: 0; }
+.cb-switch-txt b { display: block; font-weight: 400; font-size: 17px; }
+.cb-switch-txt small { display: block; font-size: 13px; color: var(--text-3); line-height: 1.3; margin-top: 2px; }

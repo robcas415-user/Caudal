@@ -249,10 +249,11 @@
     pintarHeroe(r, vacio);
     pintarAvisos(r, vacio);
     pintarBienvenida(vacio);
-    ['#tarjeta-credito', '#fila-cashback', '#grupo-periodo', '#grupo-recientes'].forEach(function (s) { $(s).hidden = vacio; });
+    ['#tarjeta-credito', '#grupo-periodo', '#grupo-recientes'].forEach(function (s) { $(s).hidden = vacio; });
+    $('#fila-cashback').hidden = vacio || !cbActivo();
     if (!vacio) {
       pintarTarjeta(r, cfg);
-      pintarCashback(r, cfg);
+      if (cbActivo()) pintarCashback(r, cfg);
       pintarPeriodo(r, cfg);
       pintarRecientes();
     }
@@ -338,6 +339,7 @@
     r.avisos.forEach(function (a) {
       // La tarjeta Libre y la de crédito ya dicen esto; aquí solo lo urgente.
       if (a.clave === 'libre_bajo' || (a.clave === 'pago_pendiente' && a.nivel === 'info')) return;
+      if (a.clave === 'tope_cashback' && !cbActivo()) return;
       if (a.clave === 'libre_negativo') a = { nivel: a.nivel, clave: a.clave, texto: 'La tarjeta debe ' + cdPesos(-r.libre) + ' más de lo que tienes en débito. Mejor no usarla hasta recibir más dinero.' };
       var icono = a.nivel === 'info' ? (a.clave === 'tope_cashback' ? 'sparkle' : 'calendar') : 'warn';
       ul.appendChild(h('li', { class: 'aviso aviso-' + a.nivel, html: '<span class="aviso-ico">' + ico(icono) + '</span><span>' + esc(a.texto) + '</span>' }));
@@ -355,7 +357,7 @@
     [
       { t: 'Anota lo que tienes en débito', s: 'El saldo de hoy en DiDi débito', fn: function () { abrirForm('otro', null, { clase: 'ajuste' }); } },
       { t: '¿La tarjeta ya debe algo?', s: 'Escribe el saldo total que ves en DiDi', fn: function () { abrirForm('otro', null, { clase: 'deuda' }); } },
-      { t: 'Revisa los datos de tu tarjeta', s: 'Día de corte, día límite y cashback', fn: function () { mostrarVista('ajustes'); } }
+      { t: 'Revisa los datos de tu tarjeta', s: 'Día de corte y día límite de pago', fn: function () { mostrarVista('ajustes'); } }
     ].forEach(function (p, i) {
       caja.appendChild(h('button', { class: 'paso', type: 'button', onclick: p.fn, html:
         '<span class="paso-num">' + (i + 1) + '</span><span class="paso-txt"><b>' + esc(p.t) + '</b><small>' + esc(p.s) + '</small></span>' + ico('chevron') }));
@@ -400,6 +402,9 @@
       el.onclick = function () { abrirForm('pago_tarjeta'); };
     } else { el.removeAttribute('role'); el.removeAttribute('tabindex'); el.onclick = null; }
   }
+
+  /** Cashback encendido = hay un porcentaje mayor a 0 en Ajustes. Apagado, no aparece en ningún lado. */
+  function cbActivo() { return !!estado && Number(estado.config.cashback_pct) > 0; }
 
   /** ¿Este movimiento es un uso del cashback? (aplicado a la tarjeta o pasado al débito) */
   function esUsoCashback(m) { return m.tipo === 'cashback' || (m.tipo === 'ajuste' && (m.origen === 'cashback' || /^cashback/i.test(String(m.descripcion || '')))); }
@@ -467,7 +472,7 @@
 
     var cats = Object.keys(m.cats).sort(function (a, b) { return m.cats[b] - m.cats[a]; });
     if (cats.length) {
-      var max = m.cats[cats[0]], conCb = cdLista(cfg.categorias_cashback);
+      var max = m.cats[cats[0]], conCb = cbActivo() ? cdLista(cfg.categorias_cashback) : [];
       var lista = h('div', { class: 'cats' });
       cats.forEach(function (c) {
         lista.appendChild(h('div', { class: 'cat' + (conCb.indexOf(c) >= 0 ? ' con-cb' : ''), html:
@@ -589,7 +594,7 @@
     var clase = efecto > 0 ? ' mas' : efecto === 0 ? ' neutro' : '';
     return h('button', { class: 'mov', type: 'button', onclick: function () { abrirForm(formDeMov(m), m); }, html:
       '<span class="mov-ico t-' + (esUsoCashback(m) ? 'cashback' : m.tipo) + (m.medio === 'debito' ? ' debito' : '') + '">' + ico(icoMov(m)) + '</span>' +
-      '<span class="mov-txt"><b>' + esc(nombreMov(m)) + (m.tipo === 'compra' && m.cashback === 'si' ? ' <span class="mov-cb">' + esc(estado.config.cashback_pct) + '%</span>' : '') + '</b><small>' + esc(detalleMov(m, conFecha)) + '</small></span>' +
+      '<span class="mov-txt"><b>' + esc(nombreMov(m)) + (m.tipo === 'compra' && m.cashback === 'si' && cbActivo() ? ' <span class="mov-cb">' + esc(estado.config.cashback_pct) + '%</span>' : '') + '</b><small>' + esc(detalleMov(m, conFecha)) + '</small></span>' +
       '<span class="mov-monto' + clase + '">' + signo + cdPesos(Math.abs(m.monto)) + '</span>' });
   }
 
@@ -848,7 +853,7 @@
     var cfg = estado.config;
     var opcionesCat = function (lista, conCb) {
       var cb = cdLista(cfg.categorias_cashback);
-      return lista.map(function (c) { return { v: c, t: c, extra: conCb && cb.indexOf(c) >= 0 ? ' <span class="chip-cb">' + esc(cfg.cashback_pct) + '%</span>' : '' }; });
+      return lista.map(function (c) { return { v: c, t: c, extra: conCb && Number(cfg.cashback_pct) > 0 && cb.indexOf(c) >= 0 ? ' <span class="chip-cb">' + esc(cfg.cashback_pct) + '%</span>' : '' }; });
     };
     // Al cambiar las categorías se rehacen los chips que dependen de ellas.
     var rehacerDependientes = function (lista) {
@@ -865,6 +870,22 @@
       var claves = s.c.filter(function (k) { return porClave[k] && !CFG_OCULTOS[k]; });
       if (!claves.length) return;
       var lista = h('div', { class: 'lista-ios' });
+      var esCb = s.t === 'Cashback', filasCb = [];
+      if (esCb) {
+        var on = Number(cfg.cashback_pct) > 0;
+        var sw = h('label', { class: 'fila campo-fila cb-switch', html:
+          '<span class="cb-switch-txt"><b>Llevar el cashback</b><small>Apagado, no aparece en ningún lado de la app.</small></span>' +
+          '<span class="switch"><input type="checkbox" id="cfg-cb-on"' + (on ? ' checked' : '') + '><i></i></span>' });
+        lista.appendChild(sw);
+        sw.querySelector('input').addEventListener('change', function () {
+          var activo = this.checked, pct = $('#cfg-cashback_pct');
+          if (pct) {
+            if (!activo) { if (Number(pct.value) > 0) guardar('caudal.cbPct', pct.value); pct.value = '0'; }
+            else if (!(Number(pct.value) > 0)) pct.value = leer('caudal.cbPct') || '6';
+          }
+          filasCb.forEach(function (x) { x.hidden = !activo; });
+        });
+      }
       claves.forEach(function (clave) {
         var c = porClave[clave], tipo = c[2], valor = cfg[clave], id = 'cfg-' + clave, control;
         var etq = ETQ_CFG[clave] || [c[3], c[4]];
@@ -886,9 +907,11 @@
           control = antes || despues ? h('span', { class: 'campo-unidad' }, [antes ? h('span', { class: 'unidad', text: antes }) : null, input, despues ? h('span', { class: 'unidad', text: despues }) : null]) : input;
           if (clave.indexOf('dia_') === 0) input.addEventListener('input', previaFechas);
         }
-        lista.appendChild(h('div', { class: 'fila campo-fila' + (CAMPOS_ANCHOS[clave] ? ' campo-ancho' : '') }, [
+        var filaCampo = h('div', { class: 'fila campo-fila' + (CAMPOS_ANCHOS[clave] ? ' campo-ancho' : '') }, [
           h('label', { for: id, html: '<b>' + esc(etq[0]) + '</b>' + (etq[1] ? '<small>' + esc(etq[1]) + '</small>' : '') }), control
-        ]));
+        ]);
+        if (esCb) { filasCb.push(filaCampo); filaCampo.hidden = !(Number(cfg.cashback_pct) > 0); }
+        lista.appendChild(filaCampo);
       });
       if (s.vista === 'fechas') lista.appendChild(h('div', { class: 'fila cfg-previa', id: 'cfg-previa', 'aria-live': 'polite' }));
       f.appendChild(h('section', { class: 'grupo' }, [h('h2', { class: 'grupo-etq', text: s.t }), lista, s.pie ? h('p', { class: 'grupo-pie', text: s.pie }) : null]));
@@ -994,7 +1017,7 @@
   function chipsCategoria(valor) {
     var oculto = h('input', { type: 'hidden', id: 'f-categoria', value: valor });
     var cont = h('div', { class: 'chips', role: 'radiogroup', 'aria-label': '¿De qué fue?' });
-    var conCb = cdLista(estado.config.categorias_cashback);
+    var conCb = cbActivo() ? cdLista(estado.config.categorias_cashback) : [];
     cdLista(estado.config.categorias).forEach(function (c) {
       var b = h('button', { type: 'button', class: 'chip' + (c === valor ? ' activo' : ''), role: 'radio', 'aria-checked': c === valor ? 'true' : 'false', 'data-cat': c,
         html: ico(icoCategoria(c)) + esc(c) + (conCb.indexOf(c) >= 0 ? ' <span class="chip-cb">' + esc(estado.config.cashback_pct) + '%</span>' : '') });
@@ -1134,7 +1157,7 @@
       // Cuadrar: se escribe lo que dice DiDi y Caudal anota solo la diferencia.
       titulo = 'Cuadrar con DiDi';
       formActual.cuadrar = true;
-      var selC = pre.clase === 'deuda' ? 'tarjeta' : pre.clase === 'cashback' ? 'cashback' : 'debito';
+      var selC = pre.clase === 'deuda' ? 'tarjeta' : pre.clase === 'cashback' && cbActivo() ? 'cashback' : 'debito';
       var pregunta = h('p', { class: 'hoja-pregunta', id: 'f-pregunta' });
       var limC = r.tarjeta.fecha_limite, vencC = cdDiasEntre(r.hoy, limC) < 0;
       var enCorteC = h('label', { class: 'fila-switch', html:
@@ -1149,7 +1172,7 @@
         teclado.txt = '';
         pintarMonto();
       };
-      cuerpo.appendChild(h('div', { class: 'hoja-seccion' }, [segmentado('f-clase', [{ v: 'debito', t: 'Débito' }, { v: 'tarjeta', t: 'Tarjeta' }, { v: 'cashback', t: 'Cashback' }], selC, ponerClase)]));
+      cuerpo.appendChild(h('div', { class: 'hoja-seccion' }, [segmentado('f-clase', [{ v: 'debito', t: 'Débito' }, { v: 'tarjeta', t: 'Tarjeta' }].concat(cbActivo() ? [{ v: 'cashback', t: 'Cashback' }] : []), selC, ponerClase)]));
       cuerpo.appendChild(pregunta);
       cuerpo.appendChild(seccionMonto());
       cuerpo.appendChild(destino);
@@ -1163,7 +1186,7 @@
       var sel = pre.clase || (mov ? (mov.tipo === 'cashback' ? 'cashback' : (mov.medio === 'credito' ? 'deuda' : 'ajuste')) : 'cashback');
       var signo = h('div', { class: 'hoja-seccion', id: 'f-signo-caja' }, [segmentado('f-signo', [{ v: 'suma', t: 'Agregar' }, { v: 'resta', t: 'Quitar' }],
         mov && Number(mov.monto) < 0 ? 'resta' : 'suma', function (v) { teclado.negativo = v === 'resta'; pintarMonto(); })]);
-      cuerpo.appendChild(h('div', { class: 'hoja-seccion' }, [segmentado('f-clase', [{ v: 'cashback', t: 'Cashback' }, { v: 'ajuste', t: 'Saldo' }, { v: 'deuda', t: 'Deuda' }], sel, function (v) {
+      cuerpo.appendChild(h('div', { class: 'hoja-seccion' }, [segmentado('f-clase', (cbActivo() || sel === 'cashback' ? [{ v: 'cashback', t: 'Cashback' }] : []).concat([{ v: 'ajuste', t: 'Saldo' }, { v: 'deuda', t: 'Deuda' }]), sel, function (v) {
         signo.hidden = v === 'cashback';
         enCorte.hidden = v !== 'deuda';
         teclado.negativo = v !== 'cashback' && valorDe('signo') === 'resta';
