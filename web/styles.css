@@ -1486,17 +1486,8 @@ body::before {
     inset 0 -1px 0 rgba(0, 0, 0, .2),
     0 4px 14px -4px rgba(0, 0, 0, .6);
 }
-/* Mientras viaja, la gota se estira en la dirección del movimiento y regresa a su forma */
-.tab-lente.viaja::before { animation: gota .55s var(--ease-out); }
-@keyframes gota {
-  0% { transform: scale(1, 1); }
-  35% { transform: scale(1.18, .9); }
-  70% { transform: scale(.97, 1.03); }
-  100% { transform: scale(1, 1); }
-}
 @media (prefers-reduced-motion: reduce) {
   .tab-lente { transition-duration: .2s; transition-timing-function: ease; }
-  .tab-lente.viaja::before { animation: none; }
 }
 
 /* Movimientos y Ajustes: mismos niveles de texto, controles visibles */

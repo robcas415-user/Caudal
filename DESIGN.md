@@ -5,7 +5,7 @@
 ## Color (tokens en `web/styles.css :root`)
 - Fondos: `--bg #050d0a`, superficies `--surface` … `--surface-3`, rellenos translúcidos `--fill`.
 - Texto: `--text`, `--text-2` (70%) y `--text-3` (48%, solo para texto secundario, nunca para cifras clave).
-- v48 (vigente): fondo casi negro #070b0a; superficies NEUTRAS de vidrio grafito (el color solo donde significa algo); texto blanco neutro 100/74/58%; marca esmeralda bosque #1f7a52 (legible: hoja #86c796); pistache #d6e38f tarjeta y cashback; azul cielo #8fc3ea débito; coral #f0908a negativo. Barra de pestañas con lente de vidrio que viaja con resorte y se estira como gota.
+- v48 (vigente): fondo casi negro #070b0a; superficies NEUTRAS de vidrio grafito (el color solo donde significa algo); texto blanco neutro 100/74/58%; marca esmeralda bosque #1f7a52 (legible: hoja #86c796); pistache #d6e38f tarjeta y cashback; azul cielo #8fc3ea débito; coral #f0908a negativo. Barra de pestañas con lente de vidrio que viaja con resorte.
 - (anterior) v47 paleta bosque curada (ref. #051F20 #0B2B26 #163832 #235347 #8EB69B #DAF1DE): fondo #0a211c con haz de luz; vidrio #163832→#1b4038 claramente más claro que el fondo; rellenos de marca #2b6a57 con tinta #e6f6e9; texto #f1f9f3 / salvia .82 / .64. Mismos significados en las tres pestañas: entra = helecho #a5cdb0, tarjeta y cashback = pistache #d5e29a, débito = aqua #9dd0d8, negativo = coral #f0998c.
 - Paleta análoga (v45 "vidrio líquido", sin naranja ni neón; fondo #0e1915 con luz ambiental salvia, superficies de vidrio translúcido con canto de luz y sombra suave), cada color con un solo significado:
   - **Menta `--mint #a8c8a0 (helecho, acento legible) sobre rellenos verde bosque --bosque #2f6b4a con texto crema`**: acción, dinero que entra, lo que queda libre.
