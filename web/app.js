@@ -280,13 +280,6 @@
     else if (r.libre < 0) sub = 'La tarjeta debe <b>' + cdPesos(-r.libre) + '</b> más de lo que tienes en débito.';
     else {
       sub = 'En débito <b>' + pesosSinCentavos(r.saldo_debito) + '</b>' + (r.deuda_tarjeta > 0 ? ' menos <b>' + pesosSinCentavos(r.deuda_tarjeta) + '</b> de la tarjeta.' : ', la tarjeta no debe nada.');
-      // Referencia: con lo que gasta normalmente (últimos 14 días), ¿para cuántos días le alcanza el Libre?
-      var ritmo = ritmoDeGasto(r);
-      if (ritmo && r.libre > 0) {
-        var alcanza = Math.floor(r.libre / ritmo.diario);
-        sub += '<span class="heroe-dia">Gastas unos <b>' + pesosSinCentavos(Math.round(ritmo.diario)) + ' al día</b>: ' +
-          (alcanza >= 60 ? 'te alcanza para más de dos meses.' : alcanza < 1 ? 'te alcanza para menos de un día.' : 'te alcanza para unos <b>' + alcanza + (alcanza === 1 ? ' día' : ' días') + '</b>.') + '</span>';
-      }
     }
     $('#libre-sub').innerHTML = sub;
 
