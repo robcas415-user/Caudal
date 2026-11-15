@@ -1337,7 +1337,38 @@
     var c = conexion();
     if (c.demo || (c.api && c.clave)) iniciarApp(); else mostrarConectar();
 
-    if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(function () {});
+    registrarSW();
+  }
+
+  /**
+   * Actualización de la app. En iPhone la app instalada casi nunca se cierra de verdad: al volver,
+   * iOS la despierta sin recargar y nunca revisa si hay versión nueva. Por eso:
+   * - se revisa al abrir y cada vez que vuelve al frente (sin caché HTTP);
+   * - cuando la versión nueva toma el control, se recarga sola si no hay una hoja abierta.
+   */
+  function registrarSW() {
+    if (!('serviceWorker' in navigator) || location.protocol !== 'https:') return;
+    var habia = !!navigator.serviceWorker.controller, recargando = false;
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (reg) {
+      var revisar = function () { reg.update().catch(function () {}); };
+      document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') revisar(); });
+      setInterval(revisar, 30 * 60 * 1000);
+    }).catch(function () {});
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (!habia || recargando) { habia = true; return; }
+      recargando = true;
+      var recargar = function () { location.reload(); };
+      if ($('#hoja-capa') && !$('#hoja-capa').hidden) {
+        // No interrumpir mientras anota: recarga al cerrar la hoja o al volver a la app.
+        document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') recargar(); });
+        var obs = new MutationObserver(function () { if ($('#hoja-capa').hidden) recargar(); });
+        obs.observe($('#hoja-capa'), { attributes: true, attributeFilter: ['hidden'] });
+      } else recargar();
+    });
+    if (window.caches) caches.keys().then(function (ks) {
+      var v = ks.filter(function (k) { return k.indexOf('caudal-v') === 0; })[0];
+      if (v && $('#version-app')) $('#version-app').textContent = ' · versión ' + v.replace('caudal-v', '');
+    }).catch(function () {});
   }
 
   arrancar();

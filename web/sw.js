@@ -1,9 +1,9 @@
 /* Caudal: guarda la app para que abra rápido y sin señal. Los datos siempre se piden a la hoja. */
-var VERSION = 'caudal-v19';
+var VERSION = 'caudal-v20';
 var ARCHIVOS = ['./', 'index.html', 'styles.css', 'app.js', 'calculos.js', 'config.js', 'manifest.webmanifest', 'icon-192.png', 'apple-touch-icon.png'];
 
 self.addEventListener('install', function (e) {
-  e.waitUntil(caches.open(VERSION).then(function (c) { return c.addAll(ARCHIVOS); }).then(function () { return self.skipWaiting(); }));
+  e.waitUntil(caches.open(VERSION).then(function (c) { return c.addAll(ARCHIVOS.map(function (u) { return new Request(u, { cache: 'reload' }); })); }).then(function () { return self.skipWaiting(); }));
 });
 
 self.addEventListener('activate', function (e) {
@@ -17,7 +17,9 @@ self.addEventListener('fetch', function (e) {
   var url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== self.location.origin) return;
   e.respondWith(
-    fetch(e.request).then(function (r) {
+    // no-cache: siempre pregunta al servidor si hay versión nueva (si no cambió, responde rápido con 304).
+    fetch(e.request.url, { cache: 'no-cache', credentials: 'same-origin' }).then(function (r) {
+      if (!r.ok) return r;
       var copia = r.clone();
       caches.open(VERSION).then(function (c) { c.put(e.request, copia); });
       return r;
