@@ -5,8 +5,13 @@
 ## Color (tokens en `web/styles.css :root`)
 - Fondos: `--bg #050d0a`, superficies `--surface` … `--surface-3`, rellenos translúcidos `--fill`.
 - Texto: `--text`, `--text-2` (70%) y `--text-3` (48%, solo para texto secundario, nunca para cifras clave).
-- Un solo tinte de acción: **menta `--mint #3fe0a2`**. La **lima** se usa solo para cashback. El **ámbar** marca "Libre bajo" y el **rojo** marca negativo o error.
-- El héroe cambia de verde a ámbar y a rojo según el Libre. El color nunca es la única señal: siempre va acompañado de texto ("Vas bien", "Ojo"…).
+- Paleta análoga (v41, sin naranja), cada color con un solo significado:
+  - **Menta `--mint #3fe0a2`**: acción, dinero que entra, lo que queda libre.
+  - **Lima `--lime #d4f26a`**: la tarjeta de crédito (pagos, "pronto", lo apartado para la tarjeta), cashback y "Libre bajo".
+  - **Aqua `--blue #6ccfe6`**: identidad del débito.
+  - **Salvia `--salida #8fa79c`**: lo que sale. Apagado a propósito: lo gastado no brilla, lo que queda sí.
+  - **Rojo `--red`**: solo negativo, vencido o error.
+- El héroe cambia de verde a lima y a rojo según el Libre. El color nunca es la única señal: siempre va acompañado de texto ("Vas bien", "Ojo"…).
 
 ## Tipografía
 - Texto: la fuente del sistema, 17px de base. Las etiquetas pequeñas miden al menos 11px.
@@ -26,7 +31,7 @@
 - Al presionar: `scale(.94–.97)`, en unos 150ms.
 - Cambiar de pestaña pasa muchas veces al día: solo un fundido de 180ms. La entrada escalonada completa ocurre solo al abrir la app.
 - La hoja abre en 450ms y cierra en 300ms. El aviso (toast) entra en 450ms y sale en 300ms.
-- El destello del héroe aparece cuando cambia el Libre: verde si sube, ámbar si baja.
+- El destello del héroe aparece cuando cambia el Libre: verde si sube, lima si baja.
 - Con movimiento reducido se quitan los desplazamientos y los bucles, pero se conservan los fundidos.
 - Solo se animan `transform` y `opacity`. Las barras de progreso son la excepción.
 

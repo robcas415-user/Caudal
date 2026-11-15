@@ -31,8 +31,11 @@
   --mint-soft: rgba(63, 224, 162, .14);
   --lime: #d4f26a;
   --lime-soft: rgba(212, 242, 106, .14);
-  --amber: #ffb547;
-  --amber-soft: rgba(255, 181, 71, .15);
+  /* Sin naranja: lo que "sale" es un salvia apagado (lo que queda es lo que brilla) y
+     lo que pide atención de la tarjeta usa el lima de la tarjeta. */
+  --salida: #8fa79c;
+  --salida-soft: rgba(143, 167, 156, .16);
+  --lime-ink: #1a2300;
   --red: #ff6b5e;
   --red-soft: rgba(255, 107, 94, .15);
   --blue: #6ccfe6;
@@ -177,7 +180,7 @@ b, strong { font-weight: 600; }
   padding: 10px 14px; border-radius: 14px; font-size: 15px;
 }
 .banda-demo { background: var(--blue-soft); color: #cfe6ff; }
-.banda-aviso { background: var(--amber-soft); color: #ffe2b8; }
+.banda-aviso { background: var(--lime-soft); color: #eef8c4; }
 .banda-accion { color: #fff; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: rgba(255, 255, 255, .14); }
 
 /* ============================== Héroe: Libre ============================== */
@@ -190,7 +193,7 @@ b, strong { font-weight: 600; }
   box-shadow: 0 30px 60px -30px rgba(0, 0, 0, .8), inset 0 1px 0 rgba(255, 255, 255, .12), inset 0 0 0 1px rgba(255, 255, 255, .05);
   transition: background .6s var(--ease);
 }
-.heroe.bajo { --h1: #6a5320; --h2: #3a2d12; --h3: #1f180b; --glow: rgba(255, 181, 71, .5); --acento: var(--amber); }
+.heroe.bajo { --h1: #44501a; --h2: #283010; --h3: #151a08; --glow: rgba(212, 242, 106, .42); --acento: var(--lime); }
 .heroe.negativo { --h1: #6e2a24; --h2: #3b1714; --h3: #200c0b; --glow: rgba(255, 107, 94, .5); --acento: var(--red); }
 .heroe-brillo {
   position: absolute; z-index: -1; inset: 0; pointer-events: none;
@@ -250,7 +253,7 @@ b, strong { font-weight: 600; }
 .aviso-ico .ico { width: 19px; height: 19px; }
 .aviso-alerta { background: linear-gradient(0deg, var(--red-soft), var(--red-soft)), var(--surface); border-color: rgba(255, 107, 94, .25); }
 .aviso-alerta .aviso-ico { background: var(--red); color: #2a0703; }
-.aviso-atencion .aviso-ico { background: var(--amber); color: #2b1a00; }
+.aviso-atencion .aviso-ico { background: var(--lime); color: var(--lime-ink); }
 .aviso-info .aviso-ico { background: var(--blue-soft); color: var(--blue); }
 
 /* ============================== Bienvenida ============================== */
@@ -304,7 +307,7 @@ b, strong { font-weight: 600; }
 }
 .tc-dias b { font: 700 17px var(--font-num); }
 .tc-dias.urgente { background: var(--red); color: #2a0703; }
-.tc-dias.pronto { background: var(--amber); color: #2b1a00; }
+.tc-dias.pronto { background: var(--lime); color: var(--lime-ink); }
 .tc-uso { margin-top: 16px; }
 .tc-uso-pista { height: 6px; border-radius: 99px; background: var(--fill-2); overflow: hidden; }
 .tc-uso-relleno { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--lime), var(--mint)); width: 0; transition: width 1s var(--ease); }
@@ -465,7 +468,7 @@ b, strong { font-weight: 600; }
 .evento + .evento::after { content: ""; position: absolute; left: 35px; top: -12px; height: 24px; border-left: 2px dotted var(--sep); }
 .ev-punto { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; flex: none; background: var(--fill); color: var(--text-2); position: relative; z-index: 1; }
 .ev-punto .ico { width: 20px; height: 20px; }
-.ev-pago .ev-punto { background: var(--amber-soft); color: var(--amber); }
+.ev-pago .ev-punto { background: var(--lime-soft); color: var(--lime); }
 .ev-siguiente .ev-punto { background: var(--fill-2); color: var(--text); }
 .ev-corte .ev-punto { background: var(--blue-soft); color: var(--blue); }
 .ev-dinero .ev-punto { background: var(--lime-soft); color: var(--lime); }
@@ -475,7 +478,7 @@ b, strong { font-weight: 600; }
 .ev-der { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
 .ev-der b { font-size: 16px; }
 .ev-cuando { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 99px; background: var(--fill-2); color: var(--text-2); white-space: nowrap; }
-.ev-cuando.pronto { background: var(--amber); color: #2b1a00; }
+.ev-cuando.pronto { background: var(--lime); color: var(--lime-ink); }
 .ev-cuando.urgente { background: var(--red); color: #2a0703; }
 
 .pie { text-align: center; font-size: 13px; color: var(--text-3); margin: 12px 0 0; }
@@ -707,7 +710,7 @@ b, strong { font-weight: 600; }
 .previa-item .ico { width: 20px; height: 20px; color: var(--mint); flex: none; }
 .previa-item small { display: block; font-size: 12px; color: var(--text-3); line-height: 1.2; }
 .previa-item b { display: block; font-size: 15px; }
-.previa-error { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; color: var(--amber); font-size: 14px; }
+.previa-error { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; color: var(--red); font-size: 14px; }
 .previa-error .ico { width: 18px; height: 18px; }
 
 /* ---- Pulido ---- */
@@ -717,7 +720,7 @@ b, strong { font-weight: 600; }
 .mosaico-accion .ico { width: 14px; height: 14px; }
 .mov-cb { display: inline-block; vertical-align: 2px; margin-left: 4px; font-size: 11px; font-weight: 700; color: var(--lime); background: var(--lime-soft); padding: 1px 6px; border-radius: 99px; }
 @keyframes destello { 0% { box-shadow: 0 0 0 0 rgba(63, 224, 162, .55); } 100% { box-shadow: 0 0 0 18px rgba(63, 224, 162, 0); } }
-@keyframes destello-baja { 0% { box-shadow: 0 0 0 0 rgba(255, 181, 71, .45); } 100% { box-shadow: 0 0 0 18px rgba(255, 181, 71, 0); } }
+@keyframes destello-baja { 0% { box-shadow: 0 0 0 0 rgba(212, 242, 106, .4); } 100% { box-shadow: 0 0 0 18px rgba(212, 242, 106, 0); } }
 .heroe.destello { animation: destello .8s var(--ease-out); }
 .heroe.destello.baja { animation-name: destello-baja; }
 @media (prefers-reduced-motion: reduce) { .heroe.destello { animation: none; } }
@@ -1061,7 +1064,7 @@ b, strong { font-weight: 600; }
   .accion:active .accion-ico { transform: none; }
 }
 .acciones.ya .accion { animation: none; }
-.deuda .mosaico-ico { background: rgba(255, 181, 71, .15); color: var(--amber); }
+.deuda .mosaico-ico { background: var(--lime-soft); color: var(--lime); }
 
 /* El + de abajo es la misma acción que Anotar compra: mismo vidrio menta. */
 .tabbar-mas {
@@ -1150,21 +1153,21 @@ b, strong { font-weight: 600; }
 .mes-flujo { display: none; }
 .tk { padding: 14px 16px 14px; }
 .tk-cabeza { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; color: var(--text-3); margin-bottom: 7px; }
-.tk-cabeza b { color: var(--amber); font-weight: 600; font-size: 13px; }
+.tk-cabeza b { color: var(--text-2); font-weight: 600; font-size: 13px; }
 .tk-barra { display: flex; height: 8px; border-radius: 99px; overflow: hidden; background: var(--fill-2); margin-bottom: 10px; gap: 2px; }
-.tk-b-sale { background: var(--amber); border-radius: 99px; transition: width .8s var(--ease-out); }
+.tk-b-sale { background: var(--salida); opacity: .55; border-radius: 99px; transition: width .8s var(--ease-out); }
 .tk-b-queda { flex: 1; background: var(--mint); border-radius: 99px; }
 .tk-fila { display: flex; align-items: center; gap: 12px; padding: 9px 0; }
 .tk-fila + .tk-fila { border-top: .5px solid var(--sep); }
 .tk-ico { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; flex: none; background: var(--fill-2); color: var(--text-3); }
 .tk-ico .ico { width: 16px; height: 16px; }
 .tk-entra .tk-ico { background: var(--mint-soft); color: var(--mint); }
-.tk-sale .tk-ico { background: var(--amber-soft); color: var(--amber); }
+.tk-sale .tk-ico { background: var(--salida-soft); color: var(--salida); }
 .tk-etq { flex: 1; min-width: 0; font-size: 16px; color: var(--text); }
 .tk-etq small { display: block; font-size: 12.5px; color: var(--text-3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tk-valor { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .tk-entra .tk-valor { color: var(--mint); }
-.tk-sale .tk-valor { color: var(--amber); }
+.tk-sale .tk-valor { color: var(--text); }
 .tk-antes .tk-etq, .tk-antes .tk-valor { color: var(--text-2); }
 .tk-total { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding: 12px 14px; border-radius: 14px;
   background: linear-gradient(180deg, rgba(255, 255, 255, .05), transparent), var(--mint-soft);

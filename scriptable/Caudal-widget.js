@@ -15,7 +15,7 @@ const CLAVE = 'PEGA_AQUI_LA_CLAVE';
 
 const ESTADOS = {
   bien: { fondo: ['#1f6b4f', '#0a221a'], acento: '#3fe0a2', texto: 'Vas bien' },
-  bajo: { fondo: ['#6a5320', '#1f180b'], acento: '#ffb547', texto: 'Queda poco' },
+  bajo: { fondo: ['#44501a', '#151a08'], acento: '#d4f26a', texto: 'Queda poco' },
   negativo: { fondo: ['#6e2a24', '#200c0b'], acento: '#ff6b5e', texto: 'Te pasaste' },
 };
 const BLANCO = (a) => new Color('#ffffff', a == null ? 1 : a);
