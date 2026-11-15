@@ -5,6 +5,7 @@
 ## Color (tokens en `web/styles.css :root`)
 - Fondos: `--bg #050d0a`, superficies `--surface` … `--surface-3`, rellenos translúcidos `--fill`.
 - Texto: `--text`, `--text-2` (70%) y `--text-3` (48%, solo para texto secundario, nunca para cifras clave).
+- v53: texto medido con APCA: principal Lc 90+, secundario (--text-2 .86) Lc 75+, terciario (--text-3 .70) Lc 60+ incluso en 12–13 px.
 - v50: tarjetas de vidrio con tinte verde bosque (más intenso arriba-izquierda), filo de luz en degradado con máscara y sombra en capas para que floten; campos hundidos (sombra interior) y chips/teclas/botones en relieve.
 - v48: fondo casi negro #070b0a; superficies NEUTRAS de vidrio grafito (el color solo donde significa algo); texto blanco neutro 100/74/58%; marca esmeralda bosque #1f7a52 (legible: hoja #86c796); pistache #d6e38f tarjeta y cashback; azul cielo #8fc3ea débito; coral #f0908a negativo. Barra de pestañas con lente de vidrio que viaja con resorte.
 - (anterior) v47 paleta bosque curada (ref. #051F20 #0B2B26 #163832 #235347 #8EB69B #DAF1DE): fondo #0a211c con haz de luz; vidrio #163832→#1b4038 claramente más claro que el fondo; rellenos de marca #2b6a57 con tinta #e6f6e9; texto #f1f9f3 / salvia .82 / .64. Mismos significados en las tres pestañas: entra = helecho #a5cdb0, tarjeta y cashback = pistache #d5e29a, débito = aqua #9dd0d8, negativo = coral #f0998c.
