@@ -1511,6 +1511,14 @@
     // La primera vez entra con calma; al cambiar de pestaña (muchas veces al día) solo un fundido corto.
     vista.classList.add(mostrarVista._ya ? 'cambia' : 'entra');
     mostrarVista._ya = true;
+    // La lente de vidrio viaja hasta la pestaña elegida (y se estira como gota mientras lo hace).
+    var lente = $('.tab-lente');
+    if (!lente) { lente = document.createElement('span'); lente.className = 'tab-lente'; lente.setAttribute('aria-hidden', 'true'); $('.tabbar-pastilla').prepend(lente); }
+    var idx = ['inicio', 'movimientos', 'ajustes'].indexOf(v);
+    if (String(idx) !== lente.style.getPropertyValue('--i') && lente.style.getPropertyValue('--i') !== '') {
+      lente.classList.remove('viaja'); void lente.offsetWidth; lente.classList.add('viaja');
+    }
+    lente.style.setProperty('--i', idx);
     $$('.tab').forEach(function (b) {
       var on = b.dataset.vista === v;
       b.classList.toggle('activo', on);

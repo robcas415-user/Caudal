@@ -1362,3 +1362,146 @@ body::before {
 /* Mismo significado de color en las tres pestañas: entra = helecho, tarjeta = pistache, débito = aqua */
 .mov-ico.t-compra { background: var(--lime-soft); color: var(--lime); }
 .mov-ico.t-deposito, .rt-recibido .rt-ico { background: var(--mint-soft); color: var(--mint); }
+
+
+/* =========================================================================
+   v48 · Contraste y color con intención
+   - Fondo casi negro (verde muy apagado): todo lo demás flota encima.
+   - Superficies NEUTRAS (vidrio grafito), no verdes: así el color solo aparece
+     donde significa algo y la app deja de verse monocromática.
+   - Texto blanco neutro (sin tinte) en 3 niveles: 100% / 74% / 58%.
+   - Marca: verde esmeralda bosque (#1f7a52), profundo y sobrio; su versión
+     legible sobre oscuro es un verde hoja (#86c796), sin el azul del menta.
+   - Acentos con significado: hoja = entra/queda · pistache = tarjeta y cashback
+     · azul cielo = débito · coral = negativo.
+   ========================================================================= */
+:root {
+  --bg: #070b0a;
+  --bg-2: #0b100e;
+  --surface: #131917;
+  --surface-2: #19201d;
+  --surface-3: #212925;
+  --text: #f6f8f7;
+  --text-2: rgba(236, 242, 239, .74);
+  --text-3: rgba(236, 242, 239, .58);
+  --fill: rgba(255, 255, 255, .07);
+  --fill-2: rgba(255, 255, 255, .11);
+  --stroke: rgba(255, 255, 255, .10);
+  --sep: rgba(255, 255, 255, .09);
+  --mint: #86c796;
+  --mint-2: #4fa36f;
+  --mint-soft: rgba(110, 190, 135, .16);
+  --mint-ink: #ffffff;
+  --bosque: #1f7a52;
+  --bosque-2: #155e3e;
+  --lime: #d6e38f;
+  --lime-soft: rgba(214, 227, 143, .14);
+  --blue: #8fc3ea;
+  --blue-soft: rgba(143, 195, 234, .15);
+  --red: #f0908a;
+  --red-soft: rgba(240, 144, 138, .15);
+  --salida: #aab3af;
+  --salida-soft: rgba(170, 179, 175, .14);
+  --vidrio: linear-gradient(180deg, rgba(255, 255, 255, .075) 0%, rgba(255, 255, 255, .045) 100%);
+  --vidrio-canto:
+    inset 0 1px 0 rgba(255, 255, 255, .13),
+    inset 0 0 0 1px rgba(255, 255, 255, .06);
+  --vidrio-sombra: 0 1px 2px rgba(0, 0, 0, .5), 0 20px 40px -18px rgba(0, 0, 0, .9);
+}
+body::before {
+  background:
+    radial-gradient(70% 34% at 20% -6%, rgba(40, 130, 88, .22), transparent 72%),
+    radial-gradient(50% 30% at 100% 30%, rgba(40, 110, 80, .08), transparent 70%),
+    linear-gradient(180deg, #0a110e 0%, var(--bg) 40%, var(--bg) 100%);
+}
+.tabbar::before { background: linear-gradient(180deg, rgba(7, 11, 10, 0), rgba(7, 11, 10, .92) 62%); }
+
+/* Héroe: el único bloque grande de color; esmeralda con luz arriba */
+.heroe { --h1: #2b8a5e; --h2: #1a6142; --h3: #0f3d2a; --glow: rgba(80, 190, 130, .45); }
+.heroe.bajo { --h1: #6f7a2c; --h2: #48511c; --h3: #2a3011; }
+.heroe.negativo { --h1: #8a3f37; --h2: #5c2822; --h3: #351612; }
+
+/* Tarjeta de crédito: grafito con un brillo pistache que la identifica */
+.tarjeta-credito {
+  background:
+    radial-gradient(90% 75% at 100% 0%, rgba(214, 227, 143, .17), transparent 60%),
+    linear-gradient(160deg, #1d2421 0%, #151b18 60%, #111613 100%);
+}
+.hoja { background: #111715; }
+
+/* Rellenos de marca */
+.boton-primario, .tk-igual, .banner-ico, .resumen-tile.activo .rt-ver {
+  background: linear-gradient(180deg, #2a9466, var(--bosque) 55%, var(--bosque-2));
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 10px 24px -10px rgba(0, 0, 0, .8);
+}
+.boton-primario:disabled { background: var(--fill-2); color: var(--text-3); box-shadow: none; }
+.accion-principal .accion-ico, .tabbar-mas {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .22), rgba(255, 255, 255, 0) 50%),
+    radial-gradient(120% 90% at 50% 115%, #34a571, transparent 70%),
+    var(--bosque);
+  color: #fff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .35),
+    inset 0 -3px 8px rgba(0, 20, 10, .35),
+    0 1px 2px rgba(0, 0, 0, .5),
+    0 12px 26px -8px rgba(0, 0, 0, .8),
+    0 0 26px 0 rgba(40, 150, 100, .22);
+}
+.accion-ico { background: var(--surface-2); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), inset 0 0 0 1px rgba(255, 255, 255, .06), 0 10px 20px -10px rgba(0, 0, 0, .9); }
+.accion > span:last-child { color: var(--text-2); }
+
+/* =================== Barra de pestañas: vidrio líquido con lente que se desliza =================== */
+.tabbar-pastilla {
+  position: relative; isolation: isolate;
+  background: linear-gradient(180deg, rgba(40, 46, 44, .62), rgba(24, 29, 27, .7));
+  -webkit-backdrop-filter: blur(28px) saturate(180%); backdrop-filter: blur(28px) saturate(180%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .16),
+    inset 0 0 0 1px rgba(255, 255, 255, .07),
+    0 1px 2px rgba(0, 0, 0, .5),
+    0 18px 40px -12px rgba(0, 0, 0, .9);
+}
+.tab { position: relative; z-index: 1; color: rgba(236, 242, 239, .6); background: none !important; transition: color .3s var(--ease-out), transform .3s var(--resorte-rebote, var(--ease)); }
+.tab.activo { color: var(--text); }
+.tab.activo .ico { color: var(--mint); }
+.tab:active { transform: scale(.92); transition-duration: .12s; }
+/* La lente: un vidrio más claro que viaja con resorte hasta la pestaña elegida */
+.tab-lente {
+  position: absolute; z-index: 0; top: 5px; bottom: 5px; left: 5px;
+  width: calc((100% - 10px) / 3);
+  transform: translateX(calc(var(--i, 0) * 100%));
+  transition: transform .55s var(--resorte-rebote, var(--ease));
+  pointer-events: none;
+}
+.tab-lente::before {
+  content: ""; position: absolute; inset: 0; border-radius: 999px;
+  background:
+    radial-gradient(120% 100% at 50% 0%, rgba(255, 255, 255, .16), transparent 70%),
+    linear-gradient(180deg, rgba(110, 190, 135, .2), rgba(110, 190, 135, .1));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .28),
+    inset 0 0 0 1px rgba(255, 255, 255, .1),
+    inset 0 -1px 0 rgba(0, 0, 0, .2),
+    0 4px 14px -4px rgba(0, 0, 0, .6);
+}
+/* Mientras viaja, la gota se estira en la dirección del movimiento y regresa a su forma */
+.tab-lente.viaja::before { animation: gota .55s var(--ease-out); }
+@keyframes gota {
+  0% { transform: scale(1, 1); }
+  35% { transform: scale(1.18, .9); }
+  70% { transform: scale(.97, 1.03); }
+  100% { transform: scale(1, 1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tab-lente { transition-duration: .2s; transition-timing-function: ease; }
+  .tab-lente.viaja::before { animation: none; }
+}
+
+/* Movimientos y Ajustes: mismos niveles de texto, controles visibles */
+.resumen-tile.cero .rt-monto { color: var(--text-2); }
+.rt-ico { background: var(--fill-2); color: var(--text); }
+.mov-ico { background: var(--fill-2); color: var(--text); }
+.mes-flecha { background: var(--fill-2); color: var(--text); }
+.mes-flecha:disabled { opacity: .3; }
