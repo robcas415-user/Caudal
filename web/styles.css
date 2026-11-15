@@ -1188,3 +1188,16 @@ b, strong { font-weight: 600; }
 .tk-total small b { color: var(--mint); font-weight: 600; }
 .tk-total.neg small { margin-top: 6px; color: var(--red); }
 .tk-total small b { font-size: inherit; letter-spacing: 0; }
+
+/* Este mes v4: sin caja dentro de caja; el resultado cierra la suma */
+.tk-fila + .tk-resultado { border-top: 1px solid rgba(220, 255, 238, .16); margin-top: 2px; padding-top: 12px; }
+.tk-igual { background: var(--mint); color: var(--mint-ink); font-weight: 700; font-size: 17px; line-height: 1; box-shadow: 0 0 14px -2px rgba(63, 224, 162, .5); }
+.tk-resultado .tk-etq { font-weight: 600; }
+.tk-resultado .tk-valor { font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+.tk-resultado.neg .tk-igual { background: var(--red); color: #2a0703; box-shadow: none; }
+.tk-resultado.neg .tk-valor { color: var(--red); }
+.tk-pista { margin: 4px 0 6px 42px; height: 6px; border-radius: 99px; background: var(--fill-2); overflow: hidden; }
+.tk-pista span { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--mint-2), var(--mint)); transition: width .9s var(--ease-out); }
+.tk-pie { margin: 0 0 4px 42px; font-size: 13px; color: var(--text-3); }
+.tk-pie b { color: var(--mint); font-weight: 600; }
+.tk-pie.neg { color: var(--red); margin-top: 2px; }

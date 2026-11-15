@@ -544,15 +544,17 @@
     var partes = [];
     if (m.credito) partes.push(redondo(m.credito) + ' tarjeta');
     if (m.debito) partes.push(redondo(m.debito) + ' débito');
-    if (m.otrosMenos) partes.push(redondo(m.otrosMenos) + (m.gastado ? ' deudas y ajustes' : ' en deuda que anotaste'));
+    if (m.otrosMenos) partes.push(redondo(m.otrosMenos) + (m.gastado ? ' deudas y ajustes' : ' de deuda que anotaste'));
     tk += renglon('sale', 'arrow-up', m.gastado ? 'Salió' : 'Salió', partes.join(' · '), '−' + redondo(salio));
-    // El resultado lleva su propia barra: qué parte de lo que tuviste sigue libre. Así el gráfico mide el número que tiene al lado.
-    var pQueda = 100 - pSale, totalHtml;
-    if (r.libre < 0) totalHtml = '<small>Salió ' + redondo(-r.libre) + ' más de lo que has tenido este mes</small>';
-    else if (tuviste > 0) totalHtml = '<div class="tk-total-barra" role="img" aria-label="' + pQueda + ' por ciento de lo que has tenido"><span style="width:' + Math.max(2, pQueda) + '%"></span></div>' +
-      '<small><b>' + pQueda + '%</b> de los ' + redondo(tuviste) + ' que has tenido este mes</small>';
-    else totalHtml = '';
-    tk += '<div class="tk-total' + (r.libre < 0 ? ' neg' : '') + '"><div class="tk-total-top"><span>Te queda libre</span><b class="num">' + (r.libre < 0 ? '−' : '') + redondo(r.libre) + '</b></div>' + totalHtml + '</div>';
+    // El resultado es el último renglón de la suma (con "=" en lugar de ícono), sin caja aparte.
+    // Debajo, su barra: qué parte del dinero del mes (lo que traías + lo que ha entrado) sigue libre.
+    var pQueda = 100 - pSale, pie;
+    if (r.libre < 0) pie = '<p class="tk-pie neg">Salieron ' + redondo(-r.libre) + ' más de los que entraron.</p>';
+    else if (tuviste > 0) pie = '<div class="tk-pista" role="img" aria-label="Conservas el ' + pQueda + ' por ciento"><span style="width:' + Math.max(2, pQueda) + '%"></span></div>' +
+      '<p class="tk-pie">Conservas <b>' + pQueda + '%</b> de tu dinero del mes.</p>';
+    else pie = '';
+    tk += '<div class="tk-fila tk-resultado' + (r.libre < 0 ? ' neg' : '') + '"><span class="tk-ico tk-igual" aria-hidden="true">=</span>' +
+      '<span class="tk-etq">Te queda libre</span><span class="tk-valor num">' + (r.libre < 0 ? '−' : '') + redondo(r.libre) + '</span></div>' + pie;
     caja.appendChild(h('div', { class: 'tk', html: tk }));
 
     var cats = Object.keys(m.cats).sort(function (a, b) { return m.cats[b] - m.cats[a]; });
@@ -568,7 +570,7 @@
       caja.appendChild(lista);
       requestAnimationFrame(function () { $$('[data-w]', lista).forEach(function (b) { b.style.clipPath = 'inset(0 ' + (100 - Number(b.dataset.w)) + '% 0 0 round 99px)'; }); });
     } else {
-      caja.appendChild(h('p', { class: 'mes-vacio', text: 'Sin compras en ' + nombreMes + ' todavía. Aquí verás en qué se va el dinero.' }));
+      caja.appendChild(h('p', { class: 'mes-vacio', text: 'Todavía no hay compras en ' + nombreMes + '. Aquí verás en qué se va tu dinero.' }));
     }
     g.appendChild(caja);
   }
