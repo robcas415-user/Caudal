@@ -527,26 +527,28 @@
     g.appendChild(h('div', { class: 'grupo-cabeza' }, [h('h2', { class: 'grupo-titulo', text: 'Este mes' }), m.gastado ? verCompras : null]));
     var caja = h('div', { class: 'lista-ios mes-caja' });
 
-    // La cuenta del mes como ticket: se lee de arriba abajo y termina en lo que queda.
-    // Arriba, una barra con lo que tuviste: la parte que salió y la que queda.
+    // La cuenta del mes como ticket: cada renglón dice con su ícono y color si entra (menta) o sale (ámbar),
+    // y termina en lo que queda, resaltado. Arriba, una barra: de todo lo que tuviste, cuánto salió.
     var entro = cdRedondear(m.recibido + m.otrosMas), salio = cdRedondear(m.gastado + m.otrosMenos);
     var tuviste = cdRedondear(Math.max(0, m.antes) + entro);
     var pSale = tuviste > 0 ? Math.min(100, Math.round(salio / tuviste * 100)) : (salio > 0 ? 100 : 0);
     var redondo = function (n) { return '$' + Math.round(Math.abs(n)).toLocaleString('es-MX'); };
-    var renglon = function (punto, etq, valor, clase) {
-      return '<div class="tk-fila ' + (clase || '') + '"><span class="tk-etq">' + '<i class="tk-punto ' + (punto || '') + '"></i>' + etq + '</span><span class="tk-valor num">' + valor + '</span></div>';
+    var renglon = function (tipo, icono, etq, sub, valor) {
+      return '<div class="tk-fila tk-' + tipo + '"><span class="tk-ico">' + ico(icono) + '</span>' +
+        '<span class="tk-etq">' + etq + (sub ? '<small>' + sub + '</small>' : '') + '</span><span class="tk-valor num">' + valor + '</span></div>';
     };
-    var tk = '<div class="tk-barra" aria-hidden="true"><span class="tk-sale" style="width:' + pSale + '%"></span><span class="tk-queda"></span></div>';
-    if (m.antes) tk += renglon('', m.antes > 0 ? 'Al empezar el mes' : 'Debías al empezar', (m.antes < 0 ? '−' : '') + redondo(m.antes), 'tk-suave');
-    tk += renglon('', 'Entró', '+' + redondo(entro));
-    tk += renglon('sale', 'Salió', '−' + redondo(salio));
-    tk += '<div class="tk-regla"></div>';
-    tk += renglon(r.libre < 0 ? 'neg' : 'queda', 'Te queda', (r.libre < 0 ? '−' : '') + redondo(r.libre), 'tk-total' + (r.libre < 0 ? ' neg' : ''));
+    var tk = '<div class="tk-cabeza"><span>De lo que tuviste, salió</span><b class="num">' + pSale + '%</b></div>' +
+      '<div class="tk-barra" aria-hidden="true"><span class="tk-b-sale" style="width:' + pSale + '%"></span><span class="tk-b-queda"></span></div>';
+    if (m.antes) tk += renglon(m.antes > 0 ? 'antes' : 'sale', 'wallet', m.antes > 0 ? 'Traías del mes pasado' : 'Debías del mes pasado', '', (m.antes < 0 ? '−' : '') + redondo(m.antes));
+    var subEntro = m.recibido && m.otrosMas ? redondo(m.recibido) + ' recibido · ' + redondo(m.otrosMas) + ' en saldos y ajustes' : m.otrosMas ? 'Saldos y ajustes que anotaste' : '';
+    tk += renglon('entra', 'arrow-down', 'Entró', subEntro, '+' + redondo(entro));
+    var partes = [];
+    if (m.credito) partes.push(redondo(m.credito) + ' tarjeta');
+    if (m.debito) partes.push(redondo(m.debito) + ' débito');
+    if (m.otrosMenos) partes.push(redondo(m.otrosMenos) + (m.gastado ? ' deudas y ajustes' : ' en deuda que anotaste'));
+    tk += renglon('sale', 'arrow-up', m.gastado ? 'Salió' : 'Salió', partes.join(' · '), '−' + redondo(salio));
+    tk += '<div class="tk-total' + (r.libre < 0 ? ' neg' : '') + '"><span>Te queda libre</span><b class="num">' + (r.libre < 0 ? '−' : '') + redondo(r.libre) + '</b></div>';
     caja.appendChild(h('div', { class: 'tk', html: tk }));
-    var detalle = [];
-    if (m.credito && m.debito) detalle.push('Compras: ' + pesosSinCentavos(m.credito) + ' con tarjeta y ' + pesosSinCentavos(m.debito) + ' con débito.');
-    if (m.otrosMas || m.otrosMenos) detalle.push('Incluye saldos y ajustes que anotaste.');
-    if (detalle.length) caja.appendChild(h('p', { class: 'mes-detalle', text: detalle.join(' ') }));
 
     var cats = Object.keys(m.cats).sort(function (a, b) { return m.cats[b] - m.cats[a]; });
     if (cats.length) {
