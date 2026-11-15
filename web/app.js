@@ -252,10 +252,11 @@
     pintarHeroe(r, vacio);
     pintarAvisos(r, vacio);
     pintarBienvenida(vacio);
-    ['#tarjeta-credito', '.duo', '#grupo-periodo', '#grupo-recientes'].forEach(function (s) { $(s).hidden = vacio; });
+    ['#tarjeta-credito', '.duo', '#grupo-fechas', '#grupo-periodo', '#grupo-recientes'].forEach(function (s) { $(s).hidden = vacio; });
     if (!vacio) {
       pintarTarjeta(r, cfg);
       pintarMosaicos(r, cfg);
+      pintarFechas(r);
       pintarPeriodo(r, cfg);
       pintarRecientes();
     }
@@ -385,6 +386,30 @@
       html += '<p class="mosaico-nota">' + esc(cb.porcentaje) + '% en ' + esc(cdLista(cfg.categorias_cashback).join(', ') || 'compras') + ' con tarjeta</p>';
     }
     var cbx = $('#mosaico-cashback'); cbx.className = 'mosaico cashback'; cbx.innerHTML = html;
+  }
+
+  /** Línea de tiempo: lo que viene, en orden, con cuántos días faltan. */
+  function pintarFechas(r) {
+    var g = $('#grupo-fechas'), t = r.tarjeta, ev = [];
+    if (t.por_pagar > 0) ev.push({ f: t.fecha_limite, ico: 'card', tono: 'pago', t: t.estado === 'vencido' ? 'Pago de la tarjeta (vencido)' : 'Pagar la tarjeta', s: 'Pago para no generar intereses', m: t.por_pagar });
+    ev.push({ f: t.siguiente_corte, ico: 'calendar', tono: 'corte', t: 'Corte de la tarjeta', s: 'Lo que compres después va al siguiente pago' });
+    var lim = limiteSiguiente(r), proximo = cdRedondear(r.deuda_tarjeta - t.por_pagar);
+    if (proximo > 0) ev.push({ f: lim, ico: 'card', tono: 'siguiente', t: t.por_pagar > 0 ? 'Siguiente pago de la tarjeta' : 'Pago de la tarjeta', s: 'Lo que llevas hasta hoy; sube si compras más', m: proximo });
+    if (r.periodo && r.periodo.fin_estimado) ev.push({ f: r.periodo.fin_estimado, ico: 'arrow-down', tono: 'dinero', t: 'Te toca recibir dinero', s: 'Aprox., empieza otra ' + nombrePeriodo() });
+    ev = ev.filter(function (e) { return e.f >= r.hoy || e.tono === 'pago'; }).sort(function (a, b) { return a.f < b.f ? -1 : a.f > b.f ? 1 : 0; });
+    g.innerHTML = '';
+    g.appendChild(h('div', { class: 'grupo-cabeza' }, [h('h2', { class: 'grupo-titulo', text: 'Próximas fechas' })]));
+    var lista = h('div', { class: 'lista-ios linea-tiempo' });
+    ev.forEach(function (e) {
+      var d = cdDiasEntre(r.hoy, e.f);
+      var cuando = d < 0 ? 'Venció' : d === 0 ? 'Hoy' : d === 1 ? 'Mañana' : 'En ' + d + ' días';
+      var urg = e.tono === 'pago' && d <= 1 ? ' urgente' : e.tono === 'pago' && d <= 5 ? ' pronto' : '';
+      lista.appendChild(h('div', { class: 'evento ev-' + e.tono, html:
+        '<span class="ev-punto">' + ico(e.ico) + '</span>' +
+        '<span class="ev-txt"><b>' + esc(e.t) + '</b><small>' + esc(fecha(e.f)) + ' · ' + esc(e.s) + '</small></span>' +
+        '<span class="ev-der">' + (e.m != null ? '<b class="num">' + pesosSinCentavos(e.m) + '</b>' : '') + '<span class="ev-cuando' + urg + '">' + cuando + '</span></span>' }));
+    });
+    g.appendChild(lista);
   }
 
   function pintarPeriodo(r, cfg) {
