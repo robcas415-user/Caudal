@@ -10,7 +10,7 @@
 
 ## Tipografía
 - Texto: la fuente del sistema, 17px de base. Las etiquetas pequeñas miden al menos 11px.
-- Cifras: `ui-rounded` con `tabular-nums`.
+- Cifras: Inter (subconjunto en `web/fonts/`, familia "Caudal Num") con `tabular-nums`. Robert prefiere Inter a SF Rounded.
 - Los inputs en iPhone usan al menos 16px, para que no haga zoom.
 
 ## Componentes

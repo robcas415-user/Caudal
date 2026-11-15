@@ -756,24 +756,59 @@
       '<div class="previa-item">' + ico('card') + '<span><small>Ese estado se paga antes del</small><b>' + esc(fecha(cdLimiteDe(sig, cfg), false)) + '</b></span></div>';
   }
 
+  /**
+   * Selector segmentado con una ficha de vidrio que se desliza. Se toca una opción o se arrastra
+   * la ficha con el dedo (como en iOS); al soltar se queda en la opción más cercana.
+   */
   function segmentado(id, lista, valor, alCambiar) {
     var oculto = h('input', { type: 'hidden', id: id, value: valor });
     var cont = h('div', { class: 'segmentado', role: 'radiogroup' });
-    // Una "ficha" que se desliza bajo la opción elegida (como el control de iOS).
-    var mover = function (i) { cont.style.setProperty('--n', lista.length); cont.style.setProperty('--i', i); cont.classList.toggle('sin-eleccion', i < 0); };
-    mover(lista.findIndex(function (o) { return o.v === valor; }));
-    lista.forEach(function (o, idx) {
-      var b = h('button', { type: 'button', class: 'segmento' + (o.v === valor ? ' activo' : ''), role: 'radio', 'aria-checked': o.v === valor ? 'true' : 'false', text: o.t });
-      b.addEventListener('click', function () {
-        if (oculto.value === o.v) return;
-        oculto.value = o.v;
-        $$('.segmento', cont).forEach(function (x) { var on = x === b; x.classList.toggle('activo', on); x.setAttribute('aria-checked', on ? 'true' : 'false'); });
-        mover(idx);
-        oculto.dispatchEvent(new Event('change', { bubbles: true }));
-        if (alCambiar) alCambiar(o.v);
-      });
+    var ficha = h('span', { class: 'seg-ficha', 'aria-hidden': 'true' });
+    cont.appendChild(ficha);
+    var actual = lista.findIndex(function (o) { return o.v === valor; });
+    var poner = function (i) { cont.style.setProperty('--n', lista.length); cont.style.setProperty('--i', i); cont.classList.toggle('sin-eleccion', i < 0); };
+    poner(actual);
+    var elegir = function (idx) {
+      poner(idx);
+      if (idx === actual) return;
+      actual = idx;
+      var o = lista[idx];
+      oculto.value = o.v;
+      $$('.segmento', cont).forEach(function (x, k) { var on = k === idx; x.classList.toggle('activo', on); x.setAttribute('aria-checked', on ? 'true' : 'false'); });
+      // Pequeño "aplastón" de la ficha al llegar: se siente como algo físico.
+      ficha.classList.remove('llega'); void ficha.offsetWidth; ficha.classList.add('llega');
+      oculto.dispatchEvent(new Event('change', { bubbles: true }));
+      if (alCambiar) alCambiar(o.v);
+    };
+    var botones = lista.map(function (o, idx) {
+      var b = h('button', { type: 'button', class: 'segmento' + (idx === actual ? ' activo' : ''), role: 'radio', 'aria-checked': idx === actual ? 'true' : 'false', text: o.t });
+      b.addEventListener('click', function () { if (!arrastrado) elegir(idx); });
       cont.appendChild(b);
+      return b;
     });
+    // Arrastrar la ficha
+    var arrastrado = false, x0 = null;
+    var indiceEn = function (x) { var r = cont.getBoundingClientRect(); return Math.max(0, Math.min(lista.length - 1, Math.floor((x - r.left) / (r.width / lista.length)))); };
+    cont.addEventListener('pointerdown', function (e) {
+      if (actual < 0 || indiceEn(e.clientX) !== actual) { x0 = null; return; }
+      x0 = e.clientX; arrastrado = false;
+    });
+    cont.addEventListener('pointermove', function (e) {
+      if (x0 == null) return;
+      if (!arrastrado && Math.abs(e.clientX - x0) > 6) { arrastrado = true; cont.classList.add('arrastrando'); try { cont.setPointerCapture(e.pointerId); } catch (er) {} }
+      if (arrastrado) { var i = indiceEn(e.clientX); poner(i); botones.forEach(function (b, k) { b.classList.toggle('bajo-dedo', k === i); }); }
+    });
+    var fin = function (e) {
+      if (x0 == null) return;
+      x0 = null;
+      if (arrastrado) {
+        cont.classList.remove('arrastrando'); botones.forEach(function (b) { b.classList.remove('bajo-dedo'); });
+        elegir(indiceEn(e.clientX));
+        setTimeout(function () { arrastrado = false; }, 0);
+      }
+    };
+    cont.addEventListener('pointerup', fin);
+    cont.addEventListener('pointercancel', function () { x0 = null; arrastrado = false; cont.classList.remove('arrastrando'); poner(actual); });
     cont.appendChild(oculto);
     return cont;
   }

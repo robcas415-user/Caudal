@@ -894,18 +894,38 @@ b, strong { font-weight: 600; }
   .desplegable, .desplegable-in { transition: none; transform: none; }
 }
 
-/* ============================== Selector segmentado v2 ==============================
-   Riel hundido + ficha clara que se desliza: se lee de inmediato cuál está elegido. */
-.segmentado { background: rgba(0, 0, 0, .38); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .07), inset 0 1px 2px rgba(0, 0, 0, .4); isolation: isolate; }
-.segmentado::before {
-  content: ""; position: absolute; z-index: 0; top: 3px; bottom: 3px; left: 3px;
-  width: calc((100% - 6px) / var(--n, 2)); border-radius: 9px;
-  background: #eef7f2; box-shadow: 0 2px 8px rgba(0, 0, 0, .45), 0 0 0 .5px rgba(0, 0, 0, .2);
-  transform: translateX(calc(100% * var(--i, 0)));
-  transition: transform .45s var(--resorte-rebote);
+/* ============================== Selector segmentado (vidrio) ==============================
+   Riel translúcido + ficha de vidrio con tinte menta que se desliza (o se arrastra). */
+@font-face { font-family: "Caudal Num"; src: url("fonts/inter-medium.woff2") format("woff2"); font-weight: 400 500; font-display: swap; }
+@font-face { font-family: "Caudal Num"; src: url("fonts/inter-semibold.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Caudal Num"; src: url("fonts/inter-bold.woff2") format("woff2"); font-weight: 700 900; font-display: swap; }
+:root { --font-num: "Caudal Num", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+
+.segmentado {
+  background: rgba(220, 255, 238, .055);
+  box-shadow: inset 0 0 0 1px rgba(220, 255, 238, .07), inset 0 1px 3px rgba(0, 0, 0, .25);
+  isolation: isolate; touch-action: pan-y; user-select: none; -webkit-user-select: none;
 }
-.segmentado.sin-eleccion::before { opacity: 0; }
-.segmento { color: var(--text-2); font-weight: 500; transition: color .25s ease; }
-.segmento.activo { color: #07150f; font-weight: 600; background: transparent; box-shadow: none; }
-.segmento:not(.activo):active { color: var(--text); }
-@media (prefers-reduced-motion: reduce) { .segmentado::before { transition: none; } }
+.seg-ficha {
+  position: absolute; z-index: 0; top: 3px; bottom: 3px; left: 3px; pointer-events: none;
+  width: calc((100% - 6px) / var(--n, 2)); border-radius: 9px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .14), rgba(255, 255, 255, .03) 60%),
+    rgba(63, 224, 162, .16);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .22),      /* brillo del borde de arriba */
+    inset 0 0 0 1px rgba(63, 224, 162, .28),     /* canto menta */
+    0 4px 14px -4px rgba(0, 0, 0, .55);
+  -webkit-backdrop-filter: blur(8px) saturate(160%); backdrop-filter: blur(8px) saturate(160%);
+  transform: translateX(calc(100% * var(--i, 0)));
+  transition: transform .5s var(--resorte-rebote), opacity .2s ease;
+}
+.segmentado.sin-eleccion .seg-ficha { opacity: 0; }
+/* Mientras se arrastra, la ficha sigue al dedo sin retraso y se "infla" un poco: se nota que se puede mover. */
+.segmentado.arrastrando .seg-ficha { transition: transform .18s var(--ease-out); scale: 1.04 1.08; }
+.seg-ficha.llega { animation: ficha-llega .45s var(--resorte-rebote); }
+@keyframes ficha-llega { 0% { scale: 1.08 .9; } 100% { scale: 1 1; } }
+.segmento { background: transparent !important; box-shadow: none !important; color: var(--text-2); font-weight: 500; transition: color .25s ease; }
+.segmento.activo, .segmento.bajo-dedo { color: var(--mint); font-weight: 600; }
+.segmentado.arrastrando .segmento.activo:not(.bajo-dedo) { color: var(--text-2); }
+@media (prefers-reduced-motion: reduce) { .seg-ficha { transition: opacity .2s ease; } .seg-ficha.llega { animation: none; } }
