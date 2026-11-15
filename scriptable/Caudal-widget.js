@@ -83,7 +83,8 @@ function pastilla(stack, est) {
 
 function lineaPago(r) {
   if (r.por_pagar > 0) return (r.dias_para_pagar < 0 ? 'Tarjeta vencida: ' + sinCentavos(r.por_pagar) : 'Pagar ' + sinCentavos(r.por_pagar) + ' ' + plazo(r));
-  return 'Tarjeta al corriente';
+  if (r.deuda_tarjeta > 0) return 'Próximo pago ' + sinCentavos(r.deuda_tarjeta);
+  return 'Tarjeta sin deuda';
 }
 
 /* ---------- pantalla de inicio ---------- */
@@ -130,7 +131,8 @@ function mediano(w, r, est) {
     const color = d <= 1 ? new Color('#ff8a7e') : d <= 5 ? new Color('#ffcf8a') : null;
     dato('Pagar tarjeta', sinCentavos(r.por_pagar), color, plazo(r));
   } else {
-    dato('Tarjeta', 'Al corriente', new Color('#3fe0a2'));
+    if (r.deuda_tarjeta > 0) dato('Próximo pago', sinCentavos(r.deuda_tarjeta), null, 'nada vence hoy');
+    else dato('Tarjeta', 'Sin deuda', new Color('#3fe0a2'));
   }
   dato('En DiDi débito', sinCentavos(r.saldo_debito));
   dato('Cashback del mes', sinCentavos(r.cashback_estimado || 0), new Color('#d4f26a'));
@@ -141,7 +143,7 @@ function mediano(w, r, est) {
 function bloqueoRect(w, r) {
   texto(w, 'LIBRE', Font.semiboldSystemFont(11), BLANCO(0.75));
   texto(w, sinCentavos(r.libre), Font.boldRoundedSystemFont(22), BLANCO(), { minimumScaleFactor: 0.6 });
-  texto(w, r.por_pagar > 0 ? 'Tarjeta ' + sinCentavos(r.por_pagar) + ' · ' + plazo(r) : (r.por_dia != null && r.libre > 0 ? 'Unos ' + sinCentavos(r.por_dia) + ' al día' : 'Tarjeta al corriente'),
+  texto(w, r.por_pagar > 0 ? 'Tarjeta ' + sinCentavos(r.por_pagar) + ' · ' + plazo(r) : (r.por_dia != null && r.libre > 0 ? 'Unos ' + sinCentavos(r.por_dia) + ' al día' : lineaPago(r)),
     Font.mediumSystemFont(12), BLANCO(0.85), { minimumScaleFactor: 0.7 });
 }
 
