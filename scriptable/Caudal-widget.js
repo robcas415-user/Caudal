@@ -70,29 +70,48 @@ async function crear() {
   const r = datos.r;
   w.backgroundGradient = fondo(r.estado_libre);
 
-  const et = w.addText('Libre para gastar');
-  et.textColor = new Color('#ffffff', 0.9); et.font = Font.mediumSystemFont(grande ? 15 : 13);
-  w.addSpacer(2);
-  const monto = w.addText(grande ? pesos(r.libre) : sinCentavos(r.libre));
-  monto.textColor = Color.white(); monto.font = Font.heavySystemFont(grande ? 38 : 30);
-  monto.minimumScaleFactor = 0.5; monto.lineLimit = 1;
+  // Encabezado: etiqueta + estado (como la tarjeta Libre de la app)
+  const top = w.addStack(); top.centerAlignContent();
+  const et = top.addText('Libre para gastar');
+  et.textColor = new Color('#ffffff', 0.78); et.font = Font.semiboldSystemFont(grande ? 14 : 12);
+  top.addSpacer();
+  if (grande) {
+    const estados = { bien: ['Vas bien', '#3fe0a2'], bajo: ['Queda poco', '#ffb547'], negativo: ['Te pasaste', '#ff6b5e'] };
+    const e = estados[r.estado_libre] || estados.bien;
+    const pill = top.addStack(); pill.backgroundColor = new Color('#000000', 0.22); pill.cornerRadius = 9; pill.setPadding(3, 8, 3, 8); pill.centerAlignContent();
+    const dot = pill.addText('● '); dot.textColor = new Color(e[1]); dot.font = Font.systemFont(9);
+    const pt = pill.addText(e[0]); pt.textColor = Color.white(); pt.font = Font.semiboldSystemFont(11);
+  }
+  w.addSpacer(grande ? 6 : 4);
+
+  // Monto con centavos más chicos y tenues, letra redondeada
+  const filaMonto = w.addStack(); filaMonto.bottomAlignContent();
+  const txt = pesos(r.libre), punto = txt.lastIndexOf('.');
+  const ent = filaMonto.addText(txt.slice(0, punto));
+  ent.textColor = Color.white(); ent.font = Font.boldRoundedSystemFont(grande ? 38 : 28);
+  ent.minimumScaleFactor = 0.5; ent.lineLimit = 1;
+  if (grande) {
+    const cen = filaMonto.addText(txt.slice(punto));
+    cen.textColor = new Color('#ffffff', 0.55); cen.font = Font.boldRoundedSystemFont(20);
+  }
 
   w.addSpacer();
   let linea;
   if (r.por_pagar > 0) {
-    linea = (r.dias_para_pagar < 0 ? '⚠️ Tarjeta vencida: ' : '💳 Pagar ') + sinCentavos(r.por_pagar) + (r.dias_para_pagar >= 0 ? ' antes del ' + fechaCorta(r.fecha_limite) : '');
+    linea = (r.dias_para_pagar < 0 ? 'Tarjeta vencida: ' : 'Pagar ') + sinCentavos(r.por_pagar) + (r.dias_para_pagar >= 0 ? ' antes del ' + fechaCorta(r.fecha_limite) : '');
   } else if (r.por_dia != null && r.libre > 0) {
-    linea = '≈ ' + sinCentavos(r.por_dia) + ' al día';
+    linea = 'Unos ' + sinCentavos(r.por_dia) + ' al día';
   } else {
-    linea = '💳 Tarjeta al corriente';
+    linea = 'Tarjeta al corriente';
   }
   const l = w.addText(linea);
-  l.textColor = Color.white(); l.font = Font.semiboldSystemFont(grande ? 15 : 12); l.lineLimit = 2; l.minimumScaleFactor = 0.7;
+  l.textColor = new Color('#ffffff', 0.85); l.font = Font.mediumSystemFont(grande ? 14 : 11); l.lineLimit = 2; l.minimumScaleFactor = 0.7;
 
   if (grande && r.cashback_estimado > 0) {
-    const c = w.addText('🎁 Cashback del mes ≈ ' + sinCentavos(r.cashback_estimado));
-    c.textColor = new Color('#ffffff', 0.9); c.font = Font.systemFont(13);
+    const c = w.addText('Cashback del mes ' + sinCentavos(r.cashback_estimado));
+    c.textColor = new Color('#d4f26a'); c.font = Font.semiboldSystemFont(12);
   }
+
   // Botón para anotar
   w.addSpacer(grande ? 8 : 6);
   const boton = w.addStack();
@@ -101,7 +120,7 @@ async function crear() {
   boton.setPadding(grande ? 7 : 5, 10, grande ? 7 : 5, 10);
   boton.url = URL_ATAJO;
   boton.addSpacer();
-  const tb = boton.addText('+ Anotar gasto');
+  const tb = boton.addText(grande ? '+  Anotar gasto' : '+ Anotar');
   tb.textColor = new Color('#03140d'); tb.font = Font.boldSystemFont(grande ? 14 : 12);
   boton.addSpacer();
 
