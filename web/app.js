@@ -759,12 +759,16 @@
   function segmentado(id, lista, valor, alCambiar) {
     var oculto = h('input', { type: 'hidden', id: id, value: valor });
     var cont = h('div', { class: 'segmentado', role: 'radiogroup' });
-    lista.forEach(function (o) {
+    // Una "ficha" que se desliza bajo la opción elegida (como el control de iOS).
+    var mover = function (i) { cont.style.setProperty('--n', lista.length); cont.style.setProperty('--i', i); cont.classList.toggle('sin-eleccion', i < 0); };
+    mover(lista.findIndex(function (o) { return o.v === valor; }));
+    lista.forEach(function (o, idx) {
       var b = h('button', { type: 'button', class: 'segmento' + (o.v === valor ? ' activo' : ''), role: 'radio', 'aria-checked': o.v === valor ? 'true' : 'false', text: o.t });
       b.addEventListener('click', function () {
         if (oculto.value === o.v) return;
         oculto.value = o.v;
         $$('.segmento', cont).forEach(function (x) { var on = x === b; x.classList.toggle('activo', on); x.setAttribute('aria-checked', on ? 'true' : 'false'); });
+        mover(idx);
         oculto.dispatchEvent(new Event('change', { bubbles: true }));
         if (alCambiar) alCambiar(o.v);
       });
