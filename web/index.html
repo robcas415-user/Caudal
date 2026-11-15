@@ -132,9 +132,15 @@
         <section class="grupo">
           <h2 class="grupo-titulo">Cómo se calcula</h2>
           <div class="lista-ios texto-ios">
-            <p><b>Libre</b> = lo que recibiste − compras con tarjeta (pagadas o no) − gastos con débito + cashback.</p>
-            <p>Pagar la tarjeta <b>no cambia</b> el Libre: ese dinero ya estaba apartado desde que compraste.</p>
-            <p>El saldo de la app de DiDi débito no es lo que puedes gastar: una parte es para la tarjeta.</p>
+            <div class="formula" aria-label="Libre igual a débito menos deuda de la tarjeta">
+              <span class="formula-item"><small>En DiDi débito</small><b id="fx-debito">—</b></span>
+              <span class="formula-op">−</span>
+              <span class="formula-item"><small>Debe la tarjeta</small><b id="fx-deuda">—</b></span>
+              <span class="formula-op">=</span>
+              <span class="formula-item formula-total"><small>Libre</small><b id="fx-libre">—</b></span>
+            </div>
+            <p>Todo lo que pagas con la tarjeta ya se resta del Libre, aunque la pagues después. Por eso <b>pagar la tarjeta no cambia</b> el Libre: solo pasa dinero del débito a la tarjeta.</p>
+            <p>Si algo no coincide con la app de DiDi, usa <b>Cuadrar</b> en Inicio.</p>
           </div>
         </section>
 

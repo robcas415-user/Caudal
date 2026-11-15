@@ -265,6 +265,11 @@
 
     pintarMovimientos();
     pintarConfig();
+    if (estado.resumen) {
+      $('#fx-debito').textContent = pesosSinCentavos(Math.round(estado.resumen.saldo_debito));
+      $('#fx-deuda').textContent = pesosSinCentavos(Math.round(estado.resumen.deuda_tarjeta));
+      $('#fx-libre').textContent = pesosSinCentavos(Math.round(estado.resumen.libre));
+    }
   }
 
   function pintarHeroe(r, vacio) {
@@ -273,6 +278,12 @@
     heroe.classList.toggle('bajo', est === 'bajo');
     heroe.classList.toggle('negativo', est === 'negativo');
     $('#heroe-estado').textContent = vacio ? 'Sin datos' : est === 'negativo' ? 'Te pasaste' : est === 'bajo' ? 'Queda poco' : 'Vas bien';
+    var heroeEl = $('#heroe');
+    if (estado._libreAntes != null && estado._libreAntes !== r.libre) {
+      heroeEl.classList.remove('destello', 'baja'); void heroeEl.offsetWidth;
+      heroeEl.classList.add('destello'); if (r.libre < estado._libreAntes) heroeEl.classList.add('baja');
+    }
+    estado._libreAntes = r.libre;
     animarMonto($('#libre-monto'), r.libre, true);
 
     var p = vacio ? null : resumenMes(r, estado.config), sub;
@@ -295,7 +306,7 @@
       var pct = Math.min(100, Math.round(p.gastado / total * 100));
       requestAnimationFrame(function () { $('#heroe-barra-relleno').style.width = pct + '%'; });
       $('#heroe-gastado').textContent = 'Gastado este mes ' + pesosSinCentavos(p.gastado);
-      $('#heroe-recibido').textContent = 'de ' + pesosSinCentavos(total);
+      $('#heroe-recibido').textContent = 'Libre ' + pesosSinCentavos(Math.max(0, r.libre));
     }
   }
 
@@ -395,7 +406,10 @@
     if (t.por_pagar > 0 && !t.alcanza_en_debito) html += '<p class="mosaico-nota mal">Faltan <b>' + cdPesos(t.falta_en_debito) + '</b> para pagar la tarjeta</p>';
     else if (r.deuda_tarjeta > 0) html += '<p class="mosaico-nota"><b>' + pesosSinCentavos(Math.min(r.deuda_tarjeta, Math.max(0, r.saldo_debito))) + '</b> es para la tarjeta</p>';
     else html += '<p class="mosaico-nota">Nada apartado para la tarjeta</p>';
-    var deb = $('#mosaico-debito'); deb.className = 'mosaico debito'; deb.innerHTML = html;
+    html += '<span class="mosaico-accion">Cuadrar ' + ico('chevron') + '</span>';
+    var deb = $('#mosaico-debito'); deb.className = 'mosaico debito tocable'; deb.innerHTML = html;
+    deb.setAttribute('role', 'button'); deb.setAttribute('tabindex', '0'); deb.setAttribute('aria-label', 'Cuadrar el débito con DiDi');
+    deb.onclick = function () { abrirForm('otro', null, { clase: 'ajuste' }); };
 
     // Cashback
     var cb = r.cashback;
@@ -542,7 +556,7 @@
   }
   function detalleMov(m, conFecha) {
     var d;
-    if (m.tipo === 'compra') d = (m.medio === 'debito' ? 'Débito' : 'Tarjeta') + (m.categoria && m.descripcion && m.descripcion !== m.categoria ? ' · ' + m.categoria : '') + (m.cashback === 'si' ? ' · con cashback' : '') + (m.origen === 'wallet' ? ' · automático' : m.origen === 'atajo' ? ' · rápido' : '');
+    if (m.tipo === 'compra') d = (m.medio === 'debito' ? 'Débito' : 'Tarjeta') + (m.categoria && m.descripcion && m.descripcion !== m.categoria ? ' · ' + m.categoria : '') + (m.origen === 'wallet' ? ' · automático' : m.origen === 'atajo' ? ' · rápido' : '');
     else if (m.tipo === 'deposito') d = 'A tu débito';
     else if (m.tipo === 'pago_tarjeta') d = 'De débito a la tarjeta';
     else if (m.tipo === 'cashback') d = 'Regreso de la tarjeta';
@@ -567,7 +581,7 @@
     var clase = efecto > 0 ? ' mas' : efecto === 0 ? ' neutro' : '';
     return h('button', { class: 'mov', type: 'button', onclick: function () { abrirForm(formDeMov(m), m); }, html:
       '<span class="mov-ico t-' + m.tipo + (m.medio === 'debito' ? ' debito' : '') + '">' + ico(icoMov(m)) + '</span>' +
-      '<span class="mov-txt"><b>' + esc(nombreMov(m)) + '</b><small>' + esc(detalleMov(m, conFecha)) + '</small></span>' +
+      '<span class="mov-txt"><b>' + esc(nombreMov(m)) + (m.tipo === 'compra' && m.cashback === 'si' ? ' <span class="mov-cb">' + esc(estado.config.cashback_pct) + '%</span>' : '') + '</b><small>' + esc(detalleMov(m, conFecha)) + '</small></span>' +
       '<span class="mov-monto' + clase + '">' + signo + cdPesos(Math.abs(m.monto)) + '</span>' });
   }
 
@@ -598,14 +612,106 @@
 
   var SECCIONES_CFG = [
     { t: 'Tú', c: ['nombre'] },
-    { t: 'Tarjeta de crédito', c: ['dia_corte', 'dia_limite'], pie: 'Los encuentras en el estado de cuenta de DiDi.' },
-    { t: 'Cashback', c: ['cashback_pct', 'cashback_tope', 'cashback_periodo', 'cashback_destino', 'categorias_cashback'] },
+    { t: 'Tarjeta de crédito', c: ['dia_corte', 'dia_limite'], pie: 'Los dos días vienen en el estado de cuenta de DiDi.', vista: 'fechas' },
     { t: 'Compras', c: ['categorias', 'categoria_default'] },
-    { t: 'Recordatorios', c: ['aviso_libre_bajo', 'avisos_dias_antes', 'avisos_correo'], pie: 'Los correos salen cada mañana a las 8 solo si hay algo que recordar.' },
-    { t: 'Avanzado', c: ['url_app'] }
+    { t: 'Cashback', c: ['cashback_pct', 'categorias_cashback', 'cashback_tope', 'cashback_periodo', 'cashback_destino'] },
+    { t: 'Recordatorios', c: ['aviso_libre_bajo', 'avisos_dias_antes', 'avisos_correo'], pie: 'Los correos salen cada mañana a las 8, solo si hay algo que recordar.' }
   ];
-  var CAMPOS_ANCHOS = { categorias: 1, categorias_cashback: 1, avisos_correo: 1, url_app: 1 };
-  var ETQ_OPCION = { mes: 'Mes', corte: 'Corte', tarjeta: 'Tarjeta', debito: 'Débito' };
+  // Ya no se usan desde que el Libre es débito menos tarjeta; se conservan en la hoja pero no se muestran.
+  var CFG_OCULTOS = { monto_periodo: 1, periodo_dias: 1, limite_credito: 1, dias_para_pagar: 1, url_app: 1 };
+  var CAMPOS_ANCHOS = { categorias: 1, categorias_cashback: 1, categoria_default: 1, avisos_dias_antes: 1, avisos_correo: 1, cashback_periodo: 1, cashback_destino: 1 };
+  var ETQ_OPCION = { mes: 'Mes', corte: 'De corte a corte', tarjeta: 'La tarjeta', debito: 'Débito' };
+  // Textos más claros que los de la hoja (la hoja guarda los mismos valores).
+  var ETQ_CFG = {
+    nombre: ['Nombre', 'Cómo te saluda la app.'],
+    dia_corte: ['Día de corte', 'Cuando DiDi cierra el estado de cuenta.'],
+    dia_limite: ['Día límite de pago', 'Hasta cuándo puedes pagar sin intereses.'],
+    categorias: ['Tus categorías', 'Toca × para quitar una o agrega otra.'],
+    categoria_default: ['Categoría del ícono Anotar', 'Las compras rápidas se guardan en esta.'],
+    cashback_pct: ['Cuánto regresa', 'Porcentaje de cashback de la tarjeta.'],
+    categorias_cashback: ['Dan cashback', 'Toca las categorías en las que la tarjeta regresa dinero.'],
+    cashback_tope: ['Tope de cashback', 'Lo máximo que regresa, en pesos. Vacío = sin tope.'],
+    cashback_periodo: ['El tope se cuenta por', ''],
+    cashback_destino: ['DiDi deposita el cashback en', ''],
+    aviso_libre_bajo: ['Avisar si el Libre baja de', 'En pesos. Vacío = no avisar.'],
+    avisos_dias_antes: ['Recordar el pago', 'Elige con cuánta anticipación te avisa.'],
+    avisos_correo: ['Mandar recordatorios a', 'Correos separados por coma. Vacío = no mandar.']
+  };
+  var DIAS_AVISO = [{ v: '7', t: '7 días antes' }, { v: '5', t: '5 días' }, { v: '3', t: '3 días' }, { v: '2', t: '2 días' }, { v: '1', t: '1 día' }, { v: '0', t: 'El mismo día' }];
+
+  /** Chips para elegir. multi: varios; la lista se guarda separada por coma en un input oculto (id cfg-clave). */
+  function chipsElegir(id, opciones, valor, multi, alCambiar) {
+    var oculto = h('input', { type: 'hidden', id: id, value: valor });
+    var cont = h('div', { class: 'chips-cfg', role: multi ? 'group' : 'radiogroup' });
+    var elegidos = function () { return cdLista(oculto.value); };
+    opciones.forEach(function (o) {
+      var on = elegidos().indexOf(o.v) >= 0;
+      var b = h('button', { type: 'button', class: 'chip' + (on ? ' activo' : ''), 'aria-pressed': on ? 'true' : 'false', html: (multi ? '<span class="chip-marca">' + ico('check') + '</span>' : '') + esc(o.t) + (o.extra || '') });
+      b.addEventListener('click', function () {
+        var lista = elegidos(), i = lista.indexOf(o.v);
+        if (multi) { if (i >= 0) lista.splice(i, 1); else lista.push(o.v); }
+        else lista = [o.v];
+        if (multi) lista.sort(function (x, y) { return opciones.findIndex(function (q) { return q.v === x; }) - opciones.findIndex(function (q) { return q.v === y; }); });
+        oculto.value = lista.join(',');
+        $$('.chip', cont).forEach(function (x, k) { var si = lista.indexOf(opciones[k].v) >= 0; x.classList.toggle('activo', si); x.setAttribute('aria-pressed', si ? 'true' : 'false'); });
+        oculto.dispatchEvent(new Event('change', { bubbles: true }));
+        if (alCambiar) alCambiar(lista);
+      });
+      cont.appendChild(b);
+    });
+    cont.appendChild(oculto);
+    return cont;
+  }
+
+  /** Editor de categorías: chips con × y un campo para agregar. */
+  function editorCategorias(id, valor, alCambiar) {
+    var oculto = h('input', { type: 'hidden', id: id, value: valor });
+    var cont = h('div', { class: 'chips-cfg' });
+    var pintar = function () {
+      cont.innerHTML = '';
+      cdLista(oculto.value).forEach(function (c, i, arr) {
+        var b = h('span', { class: 'chip chip-quitable', html: '<span class="cat-mini">' + ico(icoCategoria(c)) + '</span>' + esc(c) });
+        if (arr.length > 1) {
+          var x = h('button', { type: 'button', class: 'chip-x', 'aria-label': 'Quitar ' + c, html: '×' });
+          x.addEventListener('click', function () { var l = cdLista(oculto.value); l.splice(i, 1); fijar(l); });
+          b.appendChild(x);
+        }
+        cont.appendChild(b);
+      });
+      var nuevo = h('input', { type: 'text', class: 'chip-nuevo', placeholder: '+ Agregar', autocapitalize: 'sentences', autocomplete: 'off', enterkeyhint: 'done', 'aria-label': 'Agregar categoría' });
+      var agregar = function () {
+        var v = nuevo.value.trim().replace(/,/g, ' ');
+        if (!v) return;
+        var l = cdLista(oculto.value);
+        if (l.map(function (x) { return x.toLowerCase(); }).indexOf(v.toLowerCase()) < 0) l.push(v.charAt(0).toUpperCase() + v.slice(1));
+        fijar(l, true);
+      };
+      nuevo.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); agregar(); } });
+      nuevo.addEventListener('blur', agregar);
+      cont.appendChild(nuevo);
+      cont.appendChild(oculto);
+    };
+    var fijar = function (l, enfocar) {
+      oculto.value = l.join(',');
+      pintar();
+      oculto.dispatchEvent(new Event('change', { bubbles: true }));
+      if (alCambiar) alCambiar(l);
+      if (enfocar) { var n = $('.chip-nuevo', cont); if (n) n.focus(); }
+    };
+    pintar();
+    return cont;
+  }
+
+  /** Vista previa de las fechas con los días escritos, para confirmar que están bien. */
+  function previaFechas() {
+    var el = $('#cfg-previa'); if (!el) return;
+    var dc = Number(($('#cfg-dia_corte') || {}).value), dl = Number(($('#cfg-dia_limite') || {}).value);
+    if (!(dc >= 1 && dc <= 31) || !(dl >= 1 && dl <= 31)) { el.innerHTML = '<span class="previa-error">' + ico('warn') + 'Escribe días entre 1 y 31</span>'; return; }
+    var hoy = estado.resumen.hoy, ult = cdUltimoCorte(hoy, dc), sig = cdSiguienteCorte(ult, dc);
+    var cfg = { dia_corte: dc, dia_limite: dl, dias_para_pagar: '' };
+    el.innerHTML = '<div class="previa-item">' + ico('calendar') + '<span><small>Próximo corte</small><b>' + esc(fecha(sig, false)) + '</b></span></div>' +
+      '<div class="previa-item">' + ico('card') + '<span><small>Ese estado se paga antes del</small><b>' + esc(fecha(cdLimiteDe(sig, cfg), false)) + '</b></span></div>';
+  }
 
   function segmentado(id, lista, valor, alCambiar) {
     var oculto = h('input', { type: 'hidden', id: id, value: valor });
@@ -631,29 +737,55 @@
     f.innerHTML = '';
     var campos = estado.campos || CAUDAL_CONFIG, porClave = {};
     campos.forEach(function (c) { porClave[c[0]] = c; });
-    var usados = {};
-    var secciones = SECCIONES_CFG.map(function (s) { return { t: s.t, pie: s.pie, c: s.c.filter(function (k) { usados[k] = 1; return porClave[k]; }) }; });
-    campos.forEach(function (c) { if (!usados[c[0]]) secciones[secciones.length - 1].c.push(c[0]); });
+    var cfg = estado.config;
+    var opcionesCat = function (lista, conCb) {
+      var cb = cdLista(cfg.categorias_cashback);
+      return lista.map(function (c) { return { v: c, t: c, extra: conCb && cb.indexOf(c) >= 0 ? ' <span class="chip-cb">' + esc(cfg.cashback_pct) + '%</span>' : '' }; });
+    };
+    // Al cambiar las categorías se rehacen los chips que dependen de ellas.
+    var rehacerDependientes = function (lista) {
+      [['categoria_default', false], ['categorias_cashback', true]].forEach(function (par) {
+        var vieja = $('#cfg-' + par[0]); if (!vieja) return;
+        var valor = cdLista(vieja.value).filter(function (x) { return lista.indexOf(x) >= 0; });
+        if (!par[1] && !valor.length) valor = [lista[0]];
+        var nuevo = chipsElegir('cfg-' + par[0], opcionesCat(lista, false), valor.join(','), par[1]);
+        vieja.parentNode.replaceWith(nuevo);
+      });
+    };
 
-    secciones.forEach(function (s) {
-      if (!s.c.length) return;
+    SECCIONES_CFG.forEach(function (s) {
+      var claves = s.c.filter(function (k) { return porClave[k] && !CFG_OCULTOS[k]; });
+      if (!claves.length) return;
       var lista = h('div', { class: 'lista-ios' });
-      s.c.forEach(function (clave) {
-        var c = porClave[clave], tipo = c[2], valor = estado.config[clave], id = 'cfg-' + clave, control;
+      claves.forEach(function (clave) {
+        var c = porClave[clave], tipo = c[2], valor = cfg[clave], id = 'cfg-' + clave, control;
+        var etq = ETQ_CFG[clave] || [c[3], c[4]];
         valor = valor === '' || valor == null ? '' : String(valor);
-        if (tipo.indexOf('opcion:') === 0) {
+        if (clave === 'categorias') control = editorCategorias(id, valor, rehacerDependientes);
+        else if (clave === 'categoria_default') control = chipsElegir(id, opcionesCat(cdLista(cfg.categorias), false), valor, false);
+        else if (clave === 'categorias_cashback') control = chipsElegir(id, opcionesCat(cdLista(cfg.categorias), false), valor, true);
+        else if (clave === 'avisos_dias_antes') control = chipsElegir(id, DIAS_AVISO, valor, true);
+        else if (tipo.indexOf('opcion:') === 0) {
           control = segmentado(id, tipo.slice(7).split(',').map(function (o) { return { v: o, t: ETQ_OPCION[o] || o }; }), valor);
         } else {
-          control = h('input', { id: id, name: clave, value: valor, type: 'text', autocomplete: 'off', autocapitalize: tipo === 'numero' || clave === 'avisos_correo' || clave === 'url_app' ? 'off' : 'sentences',
-            inputmode: tipo === 'numero' ? 'decimal' : clave === 'avisos_correo' ? 'email' : clave === 'url_app' ? 'url' : null,
-            placeholder: tipo === 'numero' ? '—' : '' });
+          var esNum = tipo === 'numero';
+          var input = h('input', { id: id, name: clave, value: valor, type: 'text', autocomplete: 'off', autocapitalize: esNum || clave === 'avisos_correo' ? 'off' : 'sentences',
+            inputmode: esNum ? (clave.indexOf('dia_') === 0 ? 'numeric' : 'decimal') : clave === 'avisos_correo' ? 'email' : null,
+            placeholder: esNum ? '—' : clave === 'avisos_correo' ? 'nombre@correo.com' : '', enterkeyhint: 'done' });
+          // Prefijos y sufijos para que se entienda qué se escribe.
+          var antes = clave === 'cashback_tope' || clave === 'aviso_libre_bajo' ? '$' : clave.indexOf('dia_') === 0 ? 'Día' : '';
+          var despues = clave === 'cashback_pct' ? '%' : '';
+          control = antes || despues ? h('span', { class: 'campo-unidad' }, [antes ? h('span', { class: 'unidad', text: antes }) : null, input, despues ? h('span', { class: 'unidad', text: despues }) : null]) : input;
+          if (clave.indexOf('dia_') === 0) input.addEventListener('input', previaFechas);
         }
         lista.appendChild(h('div', { class: 'fila campo-fila' + (CAMPOS_ANCHOS[clave] ? ' campo-ancho' : '') }, [
-          h('label', { for: id, html: '<b>' + esc(c[3]) + '</b><small>' + esc(c[4]) + '</small>' }), control
+          h('label', { for: id, html: '<b>' + esc(etq[0]) + '</b>' + (etq[1] ? '<small>' + esc(etq[1]) + '</small>' : '') }), control
         ]));
       });
+      if (s.vista === 'fechas') lista.appendChild(h('div', { class: 'fila cfg-previa', id: 'cfg-previa', 'aria-live': 'polite' }));
       f.appendChild(h('section', { class: 'grupo' }, [h('h2', { class: 'grupo-etq', text: s.t }), lista, s.pie ? h('p', { class: 'grupo-pie', text: s.pie }) : null]));
     });
+    previaFechas();
     var bg = $('#btn-guardar-cfg'); bg.classList.remove('visible'); bg.disabled = false; bg.textContent = 'Guardar cambios';
   }
 

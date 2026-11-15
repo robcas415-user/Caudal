@@ -431,7 +431,7 @@ b, strong { font-weight: 600; }
 }
 .campo-fila input:focus { outline: none; color: var(--mint); }
 .campo-fila input::placeholder { color: var(--text-3); }
-.campo-fila .segmentado { width: 46%; max-width: 180px; flex: none; }
+.campo-fila .segmentado { width: auto; flex: none; }
 .campo-fila .segmento { min-height: 32px; font-size: 14px; }
 .campo-ancho { flex-direction: column; align-items: stretch; gap: 6px; }
 .campo-ancho input { width: 100%; max-width: none; text-align: left; background: var(--fill); border-radius: 10px; padding: 10px 12px; color: var(--text); }
@@ -660,3 +660,49 @@ b, strong { font-weight: 600; }
 
 .hoja-pregunta { margin: 2px 4px 0; text-align: center; font-size: 15px; color: var(--text-2); }
 .heroe-dia { display: block; margin-top: 4px; }
+
+/* ---- Ajustes ---- */
+.chips-cfg { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.chips-cfg .chip { min-height: 38px; font-size: 15px; padding: 0 14px; }
+.chip-marca { display: none; }
+.chip.activo .chip-marca { display: inline-grid; place-items: center; }
+.chip-marca .ico { width: 15px; height: 15px; }
+.chip-quitable { padding-right: 4px !important; gap: 6px; }
+.chip-quitable .cat-mini .ico { width: 16px; height: 16px; color: var(--text-3); }
+.chip-x { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 18px; line-height: 1; color: var(--text-3); background: rgba(255, 255, 255, .06); }
+.chip-x:active { background: var(--red-soft, rgba(255, 107, 94, .18)); color: var(--red); }
+.chip-nuevo { min-height: 38px; width: 120px; border-radius: 999px; border: 1px dashed rgba(255, 255, 255, .22); background: transparent; padding: 0 14px; color: var(--text); }
+.chip-nuevo:focus { outline: none; border-color: var(--mint); width: 160px; }
+.chip-nuevo::placeholder { color: var(--mint); }
+.campo-unidad { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.campo-unidad .unidad { color: var(--text-3); font-size: 15px; }
+.campo-unidad input { width: 72px; }
+.cfg-previa { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px 16px 14px; }
+.previa-item { display: flex; gap: 10px; align-items: center; background: var(--fill); border-radius: 14px; padding: 10px 12px; }
+.previa-item .ico { width: 20px; height: 20px; color: var(--mint); flex: none; }
+.previa-item small { display: block; font-size: 12px; color: var(--text-3); line-height: 1.2; }
+.previa-item b { display: block; font-size: 15px; }
+.previa-error { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; color: var(--amber); font-size: 14px; }
+.previa-error .ico { width: 18px; height: 18px; }
+.formula { display: flex; align-items: center; gap: 6px; padding: 6px 0 12px; }
+.formula-item { flex: 1; min-width: 0; background: var(--fill); border-radius: 12px; padding: 8px 10px; }
+.formula-item small { display: block; font-size: 11px; color: var(--text-3); line-height: 1.2; }
+.formula-item b { display: block; font-family: var(--font-num); font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.formula-total { background: var(--mint-soft); }
+.formula-total b { color: var(--mint); }
+.formula-op { color: var(--text-3); font-weight: 600; }
+
+/* ---- Pulido ---- */
+.mosaico.tocable { cursor: pointer; position: relative; transition: transform .15s var(--ease), background .2s; }
+.mosaico.tocable:active { transform: scale(.97); }
+.mosaico-accion { display: inline-flex; align-items: center; gap: 2px; margin-top: 10px; font-size: 13px; font-weight: 600; color: var(--mint); }
+.mosaico-accion .ico { width: 14px; height: 14px; }
+.mov-cb { display: inline-block; vertical-align: 2px; margin-left: 4px; font-size: 11px; font-weight: 700; color: var(--lime); background: var(--lime-soft); padding: 1px 6px; border-radius: 99px; }
+@keyframes destello { 0% { box-shadow: 0 0 0 0 rgba(63, 224, 162, .55); } 100% { box-shadow: 0 0 0 18px rgba(63, 224, 162, 0); } }
+@keyframes destello-baja { 0% { box-shadow: 0 0 0 0 rgba(255, 181, 71, .45); } 100% { box-shadow: 0 0 0 18px rgba(255, 181, 71, 0); } }
+.heroe.destello { animation: destello .9s ease-out; }
+.heroe.destello.baja { animation-name: destello-baja; }
+@media (prefers-reduced-motion: reduce) { .heroe.destello { animation: none; } }
+.campo-fila .segmentado { flex: none; }
+.campo-fila .segmento { white-space: nowrap; padding: 0 10px; }
+.campo-ancho .segmentado { width: 100%; max-width: none; margin-top: 4px; }
