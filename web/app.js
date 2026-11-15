@@ -278,7 +278,12 @@
     var p = vacio ? null : resumenMes(r, estado.config), sub;
     if (vacio) sub = 'Anota el dinero que tienes y aquí verás cuánto puedes gastar.';
     else if (r.libre < 0) sub = 'La tarjeta debe <b>' + cdPesos(-r.libre) + '</b> más de lo que tienes en débito.';
-    else sub = 'En débito <b>' + pesosSinCentavos(r.saldo_debito) + '</b>' + (r.deuda_tarjeta > 0 ? ' menos <b>' + pesosSinCentavos(r.deuda_tarjeta) + '</b> de la tarjeta.' : ', la tarjeta no debe nada.');
+    else {
+      sub = 'En débito <b>' + pesosSinCentavos(r.saldo_debito) + '</b>' + (r.deuda_tarjeta > 0 ? ' menos <b>' + pesosSinCentavos(r.deuda_tarjeta) + '</b> de la tarjeta.' : ', la tarjeta no debe nada.');
+      // Referencia: repartir el Libre hasta el próximo corte (fecha fija de la tarjeta, no hay que adivinar nada).
+      var diasCorte = Math.max(1, cdDiasEntre(r.hoy, r.tarjeta.siguiente_corte));
+      if (r.libre > 0) sub += '<span class="heroe-dia">Unos <b>' + pesosSinCentavos(Math.floor(r.libre / diasCorte)) + ' al día</b> hasta el corte del ' + esc(fecha(r.tarjeta.siguiente_corte, false)) + ' (' + diasCorte + (diasCorte === 1 ? ' día' : ' días') + ')</span>';
+    }
     $('#libre-sub').innerHTML = sub;
 
     var barra = $('#heroe-barra');
