@@ -929,3 +929,4 @@ b, strong { font-weight: 600; }
 .segmento.activo, .segmento.bajo-dedo { color: var(--mint); font-weight: 600; }
 .segmentado.arrastrando .segmento.activo:not(.bajo-dedo) { color: var(--text-2); }
 @media (prefers-reduced-motion: reduce) { .seg-ficha { transition: opacity .2s ease; } .seg-ficha.llega { animation: none; } }
+.cb-destino { margin-top: 4px; }

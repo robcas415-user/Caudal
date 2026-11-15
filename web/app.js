@@ -117,7 +117,7 @@
         var mov = {
           tipo: e.tipo, medio: (e.tipo === 'deposito' || e.tipo === 'pago_tarjeta') ? 'debito' : (e.medio === 'debito' ? 'debito' : 'credito'),
           monto: cdRedondear(monto), fecha: e.fecha || this.hoy(), descripcion: e.descripcion || '',
-          categoria: e.tipo === 'compra' ? (e.categoria || cfg.categoria_default) : '', nuevo_periodo: !!e.nuevo_periodo, origen: 'demo'
+          categoria: e.tipo === 'compra' ? (e.categoria || cfg.categoria_default) : '', nuevo_periodo: !!e.nuevo_periodo, origen: e.origen === 'cashback' ? 'cashback' : 'demo'
         };
         mov.cashback = (e.cashback === 'si' || e.cashback === 'no') && mov.tipo === 'compra' && mov.medio === 'credito' ? e.cashback : (cdTieneCashback(mov, cfg) ? 'si' : 'no');
         if (accion === 'editar') {
@@ -401,16 +401,39 @@
     } else { el.removeAttribute('role'); el.removeAttribute('tabindex'); el.onclick = null; }
   }
 
-  /** Cashback en una fila: cuánto va y, al tocar, anotarlo cuando DiDi lo deposita. */
+  /** ¿Este movimiento es un uso del cashback? (aplicado a la tarjeta o pasado al débito) */
+  function esUsoCashback(m) { return m.tipo === 'cashback' || (m.tipo === 'ajuste' && (m.origen === 'cashback' || /^cashback/i.test(String(m.descripcion || '')))); }
+
+  /**
+   * Cashback en DiDi (así funciona DiDi Card): cada compra con cashback suma a una "cuenta Cashback"
+   * aparte, en máximo 2 días hábiles. No baja la deuda sola: tú decides usarlo en el pago de la
+   * tarjeta o pasarlo al monedero. Vence a los 365 días. Aquí se estima lo que hay por usar.
+   */
+  function saldoCashback(r, cfg) {
+    var pct = Number(cfg.cashback_pct) || 0, tope = cfg.cashback_tope === '' || cfg.cashback_tope == null ? null : Number(cfg.cashback_tope);
+    var desde = cdSumarDias(r.hoy, -365), porMes = {}, usado = 0;
+    estado.movimientos.forEach(function (m) {
+      if (m.tipo === 'compra' && m.medio === 'credito' && m.cashback === 'si' && m.fecha >= desde && m.fecha <= r.hoy) {
+        var k = String(m.fecha).slice(0, 7); porMes[k] = (porMes[k] || 0) + (Number(m.monto) || 0);
+      } else if (esUsoCashback(m)) usado += Math.abs(Number(m.monto) || 0);
+    });
+    var ganado = 0, mes = 0;
+    Object.keys(porMes).forEach(function (k) {
+      var g = porMes[k] * pct / 100; if (tope != null && tope > 0) g = Math.min(g, tope);
+      ganado += g; if (k === r.hoy.slice(0, 7)) mes = g;
+    });
+    return { porUsar: cdRedondear(Math.max(0, ganado - usado)), mes: cdRedondear(mes), usado: cdRedondear(usado), tope: tope };
+  }
+
+  /** Cashback en una fila: cuánto hay por usar en DiDi y, al tocar, anotar que lo usaste. */
   function pintarCashback(r, cfg) {
-    var cb = r.cashback, el = $('#fila-cashback');
-    var nota = cb.tope != null && cb.tope > 0 ? (cb.tope_alcanzado ? 'Llegaste al tope' : 'Tope de ' + pesosSinCentavos(cb.tope)) :
-      esc(cb.porcentaje) + '% en ' + esc(cdLista(cfg.categorias_cashback).join(', ') || 'compras') + ' · llega a tu ' + (cfg.cashback_destino === 'debito' ? 'débito' : 'tarjeta');
+    var cb = saldoCashback(r, cfg), el = $('#fila-cashback');
+    var nota = 'Este mes llevas ' + pesosSinCentavos(cb.mes) + (cb.tope ? ' de ' + pesosSinCentavos(cb.tope) : '');
     el.className = 'fila-cashback tocable';
     el.innerHTML = '<span class="fcb-ico">' + ico('sparkle') + '</span>' +
-      '<span class="fcb-txt"><small>Cashback ' + (cfg.cashback_periodo === 'corte' ? 'desde el corte' : 'este mes') + '</small><b class="num">' + montoHtml(cb.estimado) + '</b><small>' + nota + '</small></span>' +
-      '<span class="tarjeta-accion">Ya llegó ' + ico('chevron') + '</span>';
-    el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0'); el.setAttribute('aria-label', 'Anotar el cashback que depositó DiDi');
+      '<span class="fcb-txt"><small>Cashback por usar en DiDi</small><b class="num">' + montoHtml(cb.porUsar) + '</b><small>' + nota + '</small></span>' +
+      '<span class="tarjeta-accion">Lo usé ' + ico('chevron') + '</span>';
+    el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0'); el.setAttribute('aria-label', 'Anotar que usaste tu cashback');
     el.onclick = function () { abrirForm('otro', null, { clase: 'cashback' }); };
   }
 
@@ -533,6 +556,7 @@
     if (m.tipo === 'deposito') return m.descripcion || 'Dinero recibido';
     if (m.tipo === 'pago_tarjeta') return 'Pago a la tarjeta';
     if (m.tipo === 'cashback') return 'Cashback';
+    if (esUsoCashback(m) && m.tipo === 'ajuste') return m.medio === 'credito' ? 'Cashback a la tarjeta' : 'Cashback a tu débito';
     var d = String(m.descripcion || '').split(' (')[0].trim();
     return d || (m.medio === 'credito' ? 'Cuadre de tarjeta' : 'Cuadre de débito');
   }
@@ -542,6 +566,7 @@
     else if (m.tipo === 'deposito') d = 'A tu débito';
     else if (m.tipo === 'pago_tarjeta') d = 'De débito a la tarjeta';
     else if (m.tipo === 'cashback') d = 'Regreso de la tarjeta';
+    else if (esUsoCashback(m)) d = 'Usaste tu cashback';
     else d = m.medio === 'credito' ? (Number(m.monto) < 0 ? 'Baja la deuda de la tarjeta' : 'Sube la deuda de la tarjeta') : (Number(m.monto) < 0 ? 'Baja tu débito' : 'Sube tu débito');
     return conFecha ? diaCorto(m.fecha) + ' · ' + d : d;
   }
@@ -553,6 +578,7 @@
   }
   function icoMov(m) {
     if (m.tipo === 'compra') return icoCategoria(m.categoria);
+    if (esUsoCashback(m)) return 'sparkle';
     return { deposito: 'arrow-down', pago_tarjeta: 'card', cashback: 'sparkle', ajuste: 'pencil' }[m.tipo] || 'tag';
   }
   function formDeMov(m) { return m.tipo === 'pago_tarjeta' ? 'pago_tarjeta' : (m.tipo === 'cashback' || m.tipo === 'ajuste') ? 'otro' : m.tipo; }
@@ -562,7 +588,7 @@
     var signo = efecto > 0 ? '+' : efecto < 0 ? '−' : '';
     var clase = efecto > 0 ? ' mas' : efecto === 0 ? ' neutro' : '';
     return h('button', { class: 'mov', type: 'button', onclick: function () { abrirForm(formDeMov(m), m); }, html:
-      '<span class="mov-ico t-' + m.tipo + (m.medio === 'debito' ? ' debito' : '') + '">' + ico(icoMov(m)) + '</span>' +
+      '<span class="mov-ico t-' + (esUsoCashback(m) ? 'cashback' : m.tipo) + (m.medio === 'debito' ? ' debito' : '') + '">' + ico(icoMov(m)) + '</span>' +
       '<span class="mov-txt"><b>' + esc(nombreMov(m)) + (m.tipo === 'compra' && m.cashback === 'si' ? ' <span class="mov-cb">' + esc(estado.config.cashback_pct) + '%</span>' : '') + '</b><small>' + esc(detalleMov(m, conFecha)) + '</small></span>' +
       '<span class="mov-monto' + clase + '">' + signo + cdPesos(Math.abs(m.monto)) + '</span>' });
   }
@@ -673,9 +699,9 @@
     categoria_default: ['Categoría del ícono Anotar', 'Las compras rápidas se guardan en esta.'],
     cashback_pct: ['Cuánto regresa', 'Porcentaje de cashback de la tarjeta.'],
     categorias_cashback: ['Dan cashback', 'Toca las categorías en las que la tarjeta regresa dinero.'],
-    cashback_tope: ['Tope de cashback', 'Lo máximo que regresa, en pesos. Vacío = sin tope.'],
+    cashback_tope: ['Tope de cashback', 'Lo máximo al mes, en pesos. DiDi Card: $500.'],
     cashback_periodo: ['El tope se cuenta por', ''],
-    cashback_destino: ['DiDi deposita el cashback en', ''],
+    cashback_destino: ['Normalmente usas el cashback en', 'Lo que aparece primero al anotar que lo usaste.'],
     aviso_libre_bajo: ['Avisar si el Libre baja de', 'En pesos. Vacío = no avisar.'],
     avisos_dias_antes: ['Recordar el pago', 'Elige con cuánta anticipación te avisa.'],
     avisos_correo: ['Mandar recordatorios a', 'Correos separados por coma. Vacío = no mandar.']
@@ -1045,6 +1071,10 @@
       txt = n > 0 ? 'Tendrías ' + cdPesos(r.libre + n - previo) + ' libres' : 'Lo que llegó a tu DiDi débito';
     } else if (tipo === 'pago_tarjeta') {
       txt = n > 0 ? (r.tarjeta.por_pagar - n + previo > 0 ? 'Quedarían ' + cdPesos(r.tarjeta.por_pagar - n + previo) + ' por pagar' : 'Quedas al corriente') : 'Pagar la tarjeta no cambia tu Libre';
+    } else if (formActual.cuadrar && valorDe('clase') === 'cashback') {
+      var cbS = saldoCashback(r, cfg), aTarjeta = valorDe('cbdest') !== 'debito';
+      txt = n > 0 ? (aTarjeta ? 'La tarjeta deberá ' + cdPesos(n) + ' menos' : 'Entran ' + cdPesos(n) + ' a tu débito') + ': tu Libre sube'
+        : 'Tienes ≈ ' + cdPesos(cbS.porUsar) + ' por usar. El monto exacto está en DiDi › Cashback';
     } else if (formActual.cuadrar && valorDe('clase') !== 'cashback') {
       var esDeb = valorDe('clase') === 'debito', dif = diferenciaCuadre();
       var enC = $('#f-encorte') && $('#f-encorte').closest('.fila-switch');
@@ -1111,8 +1141,10 @@
         '<span>La diferencia ya viene en el estado de cuenta<small>' + (vencC ? 'Ese pago venció el ' : 'Se suma al pago del ') + esc(fecha(limC, false)) + '</small></span>' +
         '<span class="switch"><input type="checkbox" id="f-encorte"><i></i></span>' });
       enCorteC.querySelector('input').addEventListener('change', actualizarNota);
+      var destino = h('div', { class: 'hoja-seccion cb-destino' }, [segmentado('f-cbdest', [{ v: 'tarjeta', t: 'En la tarjeta' }, { v: 'debito', t: 'A mi débito' }], estado.config.cashback_destino === 'debito' ? 'debito' : 'tarjeta', actualizarNota)]);
       var ponerClase = function (v) {
-        pregunta.textContent = v === 'debito' ? '¿Cuánto ves hoy en tu DiDi débito?' : v === 'tarjeta' ? '¿Cuánto dice DiDi que debe tu tarjeta?' : '¿Cuánto cashback te dio DiDi?';
+        pregunta.textContent = v === 'debito' ? '¿Cuánto ves hoy en tu DiDi débito?' : v === 'tarjeta' ? '¿Cuánto dice DiDi que debe tu tarjeta?' : '¿Cuánto cashback usaste?';
+        destino.hidden = v !== 'cashback';
         enCorteC.hidden = true;
         teclado.txt = '';
         pintarMonto();
@@ -1120,9 +1152,11 @@
       cuerpo.appendChild(h('div', { class: 'hoja-seccion' }, [segmentado('f-clase', [{ v: 'debito', t: 'Débito' }, { v: 'tarjeta', t: 'Tarjeta' }, { v: 'cashback', t: 'Cashback' }], selC, ponerClase)]));
       cuerpo.appendChild(pregunta);
       cuerpo.appendChild(seccionMonto());
+      cuerpo.appendChild(destino);
       cuerpo.appendChild(detalles('Nota y fecha', [filaDetalle('descripcion', 'Nota', '', 'Opcional'), filaDetalle('fecha', 'Fecha', r.hoy, '', 'date'), enCorteC], false));
       enCorteC.hidden = true;
-      pregunta.textContent = selC === 'debito' ? '¿Cuánto ves hoy en tu DiDi débito?' : selC === 'tarjeta' ? '¿Cuánto dice DiDi que debe tu tarjeta?' : '¿Cuánto cashback te dio DiDi?';
+      destino.hidden = selC !== 'cashback';
+      pregunta.textContent = selC === 'debito' ? '¿Cuánto ves hoy en tu DiDi débito?' : selC === 'tarjeta' ? '¿Cuánto dice DiDi que debe tu tarjeta?' : '¿Cuánto cashback usaste?';
       monto = '';
     } else {
       titulo = 'Editar movimiento';
@@ -1221,6 +1255,13 @@
     if (tipo === 'compra') { mov.tipo = 'compra'; mov.medio = valorDe('medio'); mov.categoria = valorDe('categoria'); }
     else if (tipo === 'deposito') { mov.tipo = 'deposito'; mov.nuevo_periodo = false; }
     else if (tipo === 'pago_tarjeta') { mov.tipo = 'pago_tarjeta'; }
+    else if (formActual.cuadrar && valorDe('clase') === 'cashback') {
+      // Usar el cashback: aplicado al pago baja la deuda; pasado al monedero sube el débito. En ambos el Libre sube.
+      var aT = valorDe('cbdest') !== 'debito', x = cdLeerMonto(teclado.txt);
+      mov = { tipo: 'ajuste', medio: aT ? 'credito' : 'debito', monto: (aT ? '-' : '') + (Number(x) || 0).toFixed(2), fecha: valorDe('fecha'), origen: 'cashback',
+        descripcion: valorDe('descripcion') || (aT ? 'Cashback a la tarjeta' : 'Cashback a tu débito') };
+      return guardarMov(mov, x);
+    }
     else if (formActual.cuadrar && valorDe('clase') !== 'cashback') {
       var dif = diferenciaCuadre(), esDebito = valorDe('clase') === 'debito';
       if (isNaN(dif)) { sacudir(); mostrarErrorForm('Escribe lo que ves en DiDi.'); return; }
@@ -1237,6 +1278,7 @@
       // Deuda que ya está en el estado de cuenta: se fecha en el corte para que cuente en "Toca pagar".
       if (clase === 'deuda' && $('#f-encorte') && $('#f-encorte').checked && mov.fecha > estado.resumen.tarjeta.ultimo_corte) mov.fecha = estado.resumen.tarjeta.ultimo_corte;
       if (clase !== 'cashback' && valorDe('signo') === 'resta') mov.monto = '-' + mov.monto;
+      if (formActual.mov && esUsoCashback(formActual.mov)) { mov.origen = 'cashback'; if (!mov.descripcion) mov.descripcion = mov.medio === 'credito' ? 'Cashback a la tarjeta' : 'Cashback a tu débito'; }
     }
     return guardarMov(mov, cdLeerMonto(teclado.txt));
   }
