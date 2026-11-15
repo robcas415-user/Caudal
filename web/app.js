@@ -1556,6 +1556,17 @@
     $('#btn-demo').addEventListener('click', function () { guardar(LS.demo, '1'); iniciarApp(); });
     $('#salir-demo').addEventListener('click', function () { guardar(LS.demo, null); guardar(LS.demoDatos, null); estado = null; if (conexion().clave) iniciarApp(); else mostrarConectar(); });
 
+    // Luz bajo el dedo en las superficies de vidrio que se tocan.
+    var apagar = function () { $$('.luz').forEach(function (x) { x.classList.remove('luz'); }); };
+    document.addEventListener('pointerdown', function (e) {
+      var el = e.target.closest && e.target.closest('.fila-cashback, .mosaico.tocable, .tarjeta-credito.tocable, .resumen-tile');
+      if (!el) return;
+      var b = el.getBoundingClientRect();
+      el.style.setProperty('--lx', (e.clientX - b.left) + 'px'); el.style.setProperty('--ly', (e.clientY - b.top) + 'px');
+      el.classList.add('luz');
+    }, { passive: true });
+    ['pointerup', 'pointercancel', 'scroll'].forEach(function (t) { window.addEventListener(t, apagar, { passive: true }); });
+    setTimeout(function () { var ac = $('.acciones'); if (ac) ac.classList.add('ya'); }, 1200); // la cascada de entrada, solo al abrir
     $$('[data-form]').forEach(function (b) { b.addEventListener('click', function () { abrirForm(b.dataset.form); }); });
     $$('.tab').forEach(function (b) { b.addEventListener('click', function () { if (vistaActual !== b.dataset.vista) mostrarVista(b.dataset.vista); else window.scrollTo({ top: 0, behavior: 'smooth' }); }); });
     $('#btn-actualizar').addEventListener('click', function () { actualizar(false); });
