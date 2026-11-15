@@ -419,7 +419,7 @@
     var t = r.tarjeta, nota, barra = '';
     if (r.deuda_tarjeta > 0 && r.saldo_debito > 0) {
       var parte = Math.min(100, Math.round(r.deuda_tarjeta / r.saldo_debito * 100));
-      barra = '<span class="fdb-pista" aria-hidden="true"><span style="width:' + parte + '%;background:var(--lime)"></span><span style="width:' + (100 - parte) + '%;background:var(--mint)"></span></span>';
+      barra = '<span class="fdb-pista" aria-hidden="true"><span style="width:' + parte + '%;background:var(--lime)"></span><span style="width:' + (100 - parte) + '%;background:var(--mint-2)"></span></span>';
     }
     if (t.por_pagar > 0 && !t.alcanza_en_debito) nota = '<span class="mal">Faltan <b>' + cdPesos(t.falta_en_debito) + '</b> para pagar la tarjeta</span>';
     else if (r.deuda_tarjeta > 0) nota = '<b>' + pesosSinCentavos(Math.min(r.deuda_tarjeta, Math.max(0, r.saldo_debito))) + '</b> es para la tarjeta';

@@ -6,7 +6,7 @@
 - Fondos: `--bg #050d0a`, superficies `--surface` … `--surface-3`, rellenos translúcidos `--fill`.
 - Texto: `--text`, `--text-2` (70%) y `--text-3` (48%, solo para texto secundario, nunca para cifras clave).
 - Paleta análoga (v45 "vidrio líquido", sin naranja ni neón; fondo #0e1915 con luz ambiental salvia, superficies de vidrio translúcido con canto de luz y sombra suave), cada color con un solo significado:
-  - **Menta `--mint #8ad3ad (jade)`**: acción, dinero que entra, lo que queda libre.
+  - **Menta `--mint #a8c8a0 (helecho, acento legible) sobre rellenos verde bosque --bosque #2f6b4a con texto crema`**: acción, dinero que entra, lo que queda libre.
   - **Lima `--lime #cfe08c (pistache)`**: la tarjeta de crédito (pagos, "pronto", lo apartado para la tarjeta), cashback y "Libre bajo".
   - **Aqua `--blue #93cbd6`**: identidad del débito.
   - **Salvia `--salida #8fa79c`**: lo que sale. Apagado a propósito: lo gastado no brilla, lo que queda sí.
