@@ -957,3 +957,40 @@ b, strong { font-weight: 600; }
 .cb-num.salta { animation: cbSalta .32s var(--resorte-rebote, var(--ease-out)); }
 @keyframes cbSalta { 0% { transform: scale(.8); opacity: .5; } 100% { transform: scale(1); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .cb-num.salta { animation: none; } }
+
+/* ============ Interruptor estilo Caudal (vidrio menta) ============ */
+.switch { width: 52px; height: 32px; }
+.switch i {
+  border-radius: 99px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, .28), rgba(255, 255, 255, .03)), var(--fill-2);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .45), inset 0 0 0 1px rgba(220, 255, 238, .07);
+  transition: background .35s var(--ease-out), box-shadow .35s var(--ease-out);
+}
+.switch i::after {
+  top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 99px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .55), rgba(255, 255, 255, .12) 55%, rgba(255, 255, 255, .22)),
+    rgba(200, 225, 214, .35);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .6),
+    inset 0 0 0 1px rgba(255, 255, 255, .18),
+    0 3px 10px -2px rgba(0, 0, 0, .55);
+  -webkit-backdrop-filter: blur(6px) saturate(170%); backdrop-filter: blur(6px) saturate(170%);
+  transition: transform .5s var(--resorte-rebote, var(--spring)), width .32s var(--resorte, var(--ease-out)), background .35s var(--ease-out), box-shadow .35s var(--ease-out);
+}
+.switch input:checked + i {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .10), rgba(255, 255, 255, 0) 60%), rgba(63, 224, 162, .30);
+  box-shadow: inset 0 0 0 1px rgba(63, 224, 162, .45), inset 0 1px 0 rgba(255, 255, 255, .12), 0 0 18px -6px rgba(63, 224, 162, .6);
+}
+.switch input:checked + i::after {
+  transform: translateX(20px);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .7), rgba(255, 255, 255, .15) 55%, rgba(255, 255, 255, .3)),
+    var(--mint);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7), inset 0 0 0 1px rgba(255, 255, 255, .25), 0 3px 10px -2px rgba(0, 40, 25, .6);
+}
+/* Al tocarlo la ficha se estira, como en iOS: se siente que la vas a mover. */
+.switch input:active + i::after { width: 32px; }
+.switch input:checked:active + i::after { transform: translateX(14px); }
+.switch input:focus-visible + i { outline: 2px solid var(--mint); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .switch i::after { transition: background .2s, box-shadow .2s; } }
