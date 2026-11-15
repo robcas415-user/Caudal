@@ -280,9 +280,13 @@
     else if (r.libre < 0) sub = 'La tarjeta debe <b>' + cdPesos(-r.libre) + '</b> más de lo que tienes en débito.';
     else {
       sub = 'En débito <b>' + pesosSinCentavos(r.saldo_debito) + '</b>' + (r.deuda_tarjeta > 0 ? ' menos <b>' + pesosSinCentavos(r.deuda_tarjeta) + '</b> de la tarjeta.' : ', la tarjeta no debe nada.');
-      // Referencia: repartir el Libre hasta el próximo corte (fecha fija de la tarjeta, no hay que adivinar nada).
-      var diasCorte = Math.max(1, cdDiasEntre(r.hoy, r.tarjeta.siguiente_corte));
-      if (r.libre > 0) sub += '<span class="heroe-dia">Unos <b>' + pesosSinCentavos(Math.floor(r.libre / diasCorte)) + ' al día</b> hasta el corte del ' + esc(fecha(r.tarjeta.siguiente_corte, false)) + ' (' + diasCorte + (diasCorte === 1 ? ' día' : ' días') + ')</span>';
+      // Referencia: con lo que gasta normalmente (últimos 14 días), ¿para cuántos días le alcanza el Libre?
+      var ritmo = ritmoDeGasto(r);
+      if (ritmo && r.libre > 0) {
+        var alcanza = Math.floor(r.libre / ritmo.diario);
+        sub += '<span class="heroe-dia">Gastas unos <b>' + pesosSinCentavos(Math.round(ritmo.diario)) + ' al día</b>: ' +
+          (alcanza >= 60 ? 'te alcanza para más de dos meses.' : alcanza < 1 ? 'te alcanza para menos de un día.' : 'te alcanza para unos <b>' + alcanza + (alcanza === 1 ? ' día' : ' días') + '</b>.') + '</span>';
+      }
     }
     $('#libre-sub').innerHTML = sub;
 
@@ -296,6 +300,19 @@
       $('#heroe-gastado').textContent = 'Gastado este mes ' + pesosSinCentavos(p.gastado);
       $('#heroe-recibido').textContent = 'de ' + pesosSinCentavos(total);
     }
+  }
+
+  /** Gasto promedio por día en los últimos 14 días (o desde el primer movimiento). Pide al menos 3 días de historia. */
+  function ritmoDeGasto(r) {
+    var movs = estado.movimientos;
+    if (!movs.length) return null;
+    var primero = movs.reduce(function (min, m) { return m.fecha < min ? m.fecha : min; }, r.hoy);
+    var desde = cdSumarDias(r.hoy, -13);
+    if (primero > desde) desde = primero;
+    var dias = cdDiasEntre(desde, r.hoy) + 1;
+    if (dias < 3) return null;
+    var total = movs.reduce(function (t, m) { return m.tipo === 'compra' && m.fecha >= desde && m.fecha <= r.hoy ? t + (Number(m.monto) || 0) : t; }, 0);
+    return total > 0 ? { diario: total / dias, dias: dias } : null;
   }
 
   function pintarAvisos(r, vacio) {
