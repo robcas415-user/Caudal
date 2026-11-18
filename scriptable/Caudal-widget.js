@@ -359,7 +359,9 @@ function marco(w, est, alto, ancho, radio, padH) {
 function fichaChica(w, d, est, alto, ancho) {
   const r = d.r, nom = d.cuenta ? d.cuenta.nombre : '';
   const f = marco(w, est, alto, ancho, 14, 9);
-  const c = f.addStack(); c.layoutVertically();
+  // Columna de ancho fijo (el de la ficha por dentro): así el estado queda siempre pegado al borde derecho,
+  // igual en todas las fichas, sin depender de qué tan largo sea el texto de abajo.
+  const c = f.addStack(); c.layoutVertically(); c.size = new Size(ancho - 2 * 9 - 2, 0);
   const l1 = c.addStack(); l1.centerAlignContent();
   texto(l1, '●', Font.systemFont(7), col(est.acento)); l1.addSpacer(4);
   texto(l1, nom, Font.semiboldSystemFont(11), BLANCO(0.92), { minimumScaleFactor: 0.7 });
@@ -383,20 +385,20 @@ function fichaChica(w, d, est, alto, ancho) {
 function fichaMediana(w, d, est, alto, ancho) {
   const r = d.r, nom = d.cuenta ? d.cuenta.nombre : '';
   const f = marco(w, est, alto, ancho, 16, 13);
-  const izq = f.addStack(); izq.layoutVertically();
+  const izq = f.addStack(); izq.layoutVertically(); izq.size = new Size(100, 0);   // ancho fijo: el estado queda alineado en todas las fichas
   const l1 = izq.addStack(); l1.centerAlignContent();
   texto(l1, '●', Font.systemFont(8), col(est.acento)); l1.addSpacer(4);
   texto(l1, nom, Font.semiboldSystemFont(11), BLANCO(0.92), { minimumScaleFactor: 0.7 });
-  l1.addSpacer(5);
+  l1.addSpacer();
   texto(l1, est.texto, Font.mediumSystemFont(10), col(est.acento), { minimumScaleFactor: 0.7 });
   monto(izq, r.libre, 25, false);
   f.addSpacer();
   const ind = indicadoresDe(d, est);
   ind.forEach((x, i) => {
-    f.addSpacer(10);
+    f.addSpacer(8);
     const sep = f.addStack(); sep.backgroundColor = col(est.pal.acento, 0.28); sep.size = new Size(1, alto - 24);
-    f.addSpacer(10);
-    indicador(f, x[0], x[1], x[2], x[3], 76);
+    f.addSpacer(8);
+    indicador(f, x[0], x[1], x[2], x[3], 70);
   });
 }
 
@@ -438,7 +440,7 @@ function variasFichas(datos, fam) {
   w.backgroundGradient = fondoVarias(ests);
   const chico = fam === 'small';
   const lado = ladoChico(), n = datos.lista.length;
-  const gap = 4, pie = 11, pad = chico ? 8 : 9;
+  const gap = 4, pie = 13, pad = chico ? 8 : 9;
   w.setPadding(pad, pad, pad - 2, pad);
   // El alto de cada ficha sale de lo que queda (chico) o es fijo (mediano y grande).
   const alto = chico ? Math.floor((lado - pad * 2 + 2 - pie - gap * (n - 1)) / n) : fam === 'large' ? 62 : 57;
@@ -449,10 +451,12 @@ function variasFichas(datos, fam) {
   });
   w.addSpacer();
   // Hora de la última actualización, centrada y discreta, para saber si las cifras están al día.
-  const fila = w.addStack(); fila.centerAlignContent(); fila.size = new Size(0, pie - 2);
+  const fila = w.addStack(); fila.centerAlignContent(); fila.size = new Size(0, 11);   // alto fijo: ícono y hora se centran sobre la misma línea
   fila.addSpacer();
-  const im = fila.addImage(iconoActualizar(datos.viejo ? col('#d6e38f', 0.9) : BLANCO(0.5)));
-  im.imageSize = new Size(9, 9); fila.addSpacer(3);
+  // El ícono va en su propio cuadro del alto de la fila y centrado, igual que el texto: comparten el mismo centro.
+  const cuadro = fila.addStack(); cuadro.size = new Size(8, 11); cuadro.centerAlignContent();
+  const im = cuadro.addImage(iconoActualizar(datos.viejo ? col('#d6e38f', 0.9) : BLANCO(0.5)));
+  im.imageSize = new Size(8, 8); fila.addSpacer(3);
   texto(fila, horaTexto(datos.t) + (datos.viejo ? ' · sin conexión' : '') + (!chico && datos.total > n ? ' · +' + (datos.total - n) + ' más' : ''),
     Font.mediumSystemFont(8), datos.viejo ? col('#d6e38f', 0.9) : BLANCO(0.5));
   fila.addSpacer();
