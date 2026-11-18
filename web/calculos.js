@@ -373,8 +373,9 @@ function cdAvisos(r, cfg) {
   var av = [];
   var t = r.tarjeta;
   if (r.tipo === 'debito') {
-    // Cuenta de solo débito: no hay tarjeta, corte ni cashback; solo avisa si el saldo quedó en negativo.
+    // Cuenta de solo débito: no hay tarjeta, corte ni cashback; avisa si el saldo es bajo o quedó en negativo.
     if (r.libre < 0) av.push({ nivel: 'alerta', clave: 'libre_negativo', texto: 'Anotaste ' + cdPesos(-r.libre) + ' más de lo que hay en ' + (r.cuenta || 'esta cuenta') + '. Revisa con Cuadrar.' });
+    else if (r.estado_libre === 'bajo') av.push({ nivel: 'atencion', clave: 'libre_bajo', texto: 'Te quedan solo ' + cdPesos(r.libre) + (r.cuenta ? ' en ' + r.cuenta : '') + '.' });
     return av;
   }
   if (r.libre < 0) {
@@ -451,9 +452,22 @@ function cdResumenTexto(r, conCuenta) {
  *   tipo 'debito':  solo débito: saldo y movimientos, sin tarjeta, corte ni cashback.
  * Los movimientos sin cuenta (los de antes) son de la primera cuenta.
  */
-var CAUDAL_CUENTA_CAMPOS = ['id', 'nombre', 'tipo', 'color', 'dia_corte', 'dia_limite', 'cashback_pct', 'categorias_cashback', 'cashback_tope'];
-/** Lo que cada cuenta de crédito guarda aparte (lo demás de Config es de todas). */
-var CAUDAL_CAMPOS_TARJETA = ['dia_corte', 'dia_limite', 'cashback_pct', 'categorias_cashback', 'cashback_tope'];
+/**
+ * Pestaña Cuentas (una fila por cuenta). Columnas, en este orden:
+ *   id, nombre            identificador (no cambia) y nombre que se ve.
+ *   tipo                  'credito' (tarjeta + débito) o 'debito' (solo débito). Define si hay corte y límite.
+ *   color                 color de marca (#rrggbb).
+ *   dia_corte, dia_limite solo crédito. El corte es obligatorio; el límite es opcional.
+ *   tiene_cashback        'si' / 'no'. Solo crédito. Con 'no' (o en débito) no hay cashback en ningún lado.
+ *   cashback_pct, categorias_cashback, cashback_tope   solo si tiene_cashback = 'si' (se conservan al apagarlo).
+ *   aviso_libre_bajo      todas: avisar si el Libre (o el saldo) baja de esta cantidad. Vacío = no avisar.
+ */
+var CAUDAL_CUENTA_CAMPOS = ['id', 'nombre', 'tipo', 'color', 'dia_corte', 'dia_limite', 'tiene_cashback', 'cashback_pct', 'categorias_cashback', 'cashback_tope', 'aviso_libre_bajo'];
+/**
+ * Lo que cada cuenta guarda aparte (lo demás de Config es de todas). Corte, límite y cashback solo
+ * aplican a cuentas de crédito; aviso_libre_bajo (avisar si el saldo baja de…) es de todas.
+ */
+var CAUDAL_CAMPOS_TARJETA = ['dia_corte', 'dia_limite', 'tiene_cashback', 'cashback_pct', 'categorias_cashback', 'cashback_tope', 'aviso_libre_bajo'];
 /** El verde bosque de siempre (DiDi). Con este color la app se ve exactamente igual que antes. */
 var CD_COLOR_BASE = '#2f6b4a';
 
@@ -473,10 +487,19 @@ function cdCuentasNormalizar(filas) {
     var tipo = /^(deb|déb|solo)/i.test(String(f.tipo || '').trim()) ? 'debito' : 'credito';
     var c = { id: id, nombre: String(f.nombre || '').trim() || id, tipo: tipo, color: cdColorValido(f.color) || CD_COLOR_BASE };
     CAUDAL_CAMPOS_TARJETA.forEach(function (k) { c[k] = f[k] == null ? '' : f[k]; });
+    c.tiene_cashback = cdSiNo(c.tiene_cashback);
     out.push(c);
   });
-  if (!out.length) out.push({ id: 'didi', nombre: 'DiDi', tipo: 'credito', color: CD_COLOR_BASE, dia_corte: '', dia_limite: '', cashback_pct: '', categorias_cashback: '', cashback_tope: '' });
+  if (!out.length) out.push({ id: 'didi', nombre: 'DiDi', tipo: 'credito', color: CD_COLOR_BASE, dia_corte: '', dia_limite: '', tiene_cashback: '', cashback_pct: '', categorias_cashback: '', cashback_tope: '', aviso_libre_bajo: '' });
   return out;
+}
+
+/** 'si' / 'no' / '' (sin decidir) a partir de lo que haya en la celda. */
+function cdSiNo(v) {
+  var t = String(v == null ? '' : v).trim().toLowerCase();
+  if (/^(si|sí|s|true|verdadero|1|yes)$/.test(t)) return 'si';
+  if (/^(no|n|false|falso|0)$/.test(t)) return 'no';
+  return '';
 }
 
 /** Busca una cuenta por id o por nombre (sin importar mayúsculas). */
@@ -498,7 +521,8 @@ function cdCuentaDeMov(m, cuentas) {
 /**
  * Config de una cuenta: lo general de Config + lo de su tarjeta (de su fila en Cuentas).
  * La primera cuenta usa Config cuando su celda está vacía (así lo de antes sigue igual).
- * Una cuenta de solo débito no tiene cashback ni aviso de Libre bajo.
+ * Una cuenta de solo débito no tiene cashback. El aviso de "Libre bajo" es de cada cuenta: la primera
+ * usa el de Config si el suyo está vacío; las demás, solo el suyo (vacío = no avisar).
  */
 function cdConfigDeCuenta(cfgCruda, cuenta, esPrimera) {
   var out = {};
@@ -508,11 +532,57 @@ function cdConfigDeCuenta(cfgCruda, cuenta, esPrimera) {
     if (v !== '' && v != null) out[k] = v;
     else if (!esPrimera) out[k] = k === 'cashback_pct' ? 0 : '';
   });
-  if (cuenta.tipo === 'debito') { out.cashback_pct = 0; out.aviso_libre_bajo = ''; }
+  // ¿Esta cuenta lleva cashback? Solo si es de crédito y así está marcado. Sin marca (hojas viejas):
+  // la primera cuenta lo lleva si su % es mayor a 0; las demás, no.
+  var pct = Number(out.cashback_pct) || 0, marca = cdSiNo(cuenta.tiene_cashback);
+  var lleva = cuenta.tipo === 'credito' && pct > 0 && (marca === 'si' || (marca === '' && esPrimera));
+  out.cashback_guardado = { pct: pct, categorias: String(out.categorias_cashback || '') };   // lo que se conserva aunque esté apagado
+  if (!lleva) { out.cashback_pct = 0; out.categorias_cashback = ''; }
+  out.tiene_cashback = lleva ? 'si' : 'no';
   out.cuenta_tipo = cuenta.tipo;
   out.cuenta_nombre = cuenta.nombre;
   out.cuenta_id = cuenta.id;
   return out;
+}
+
+/**
+ * Deja una cuenta consistente según su tipo y avisa (con un texto claro) si falta algo.
+ *   débito: sin corte, límite ni cashback (se vacían).
+ *   crédito: corte obligatorio (1 a 31), límite opcional (1 a 31); si lleva cashback, un % mayor a 0.
+ * c: la cuenta ya mezclada con lo nuevo. respaldo: valores de Config para la primera cuenta (corte vacío).
+ */
+function cdValidarCuenta(c, respaldo) {
+  var o = {}, num = function (v) { return v === '' || v == null ? NaN : Number(v); };
+  Object.keys(c).forEach(function (k) { o[k] = c[k]; });
+  o.tipo = o.tipo === 'debito' ? 'debito' : 'credito';
+  o.tiene_cashback = cdSiNo(o.tiene_cashback);
+  var aviso = String(o.aviso_libre_bajo == null ? '' : o.aviso_libre_bajo).trim();
+  if (aviso !== '' && !(Number(aviso) >= 0)) throw new Error('El aviso de saldo bajo debe ser una cantidad en pesos');
+  o.aviso_libre_bajo = aviso;
+  if (o.tipo === 'debito') {
+    ['dia_corte', 'dia_limite', 'cashback_pct', 'categorias_cashback', 'cashback_tope'].forEach(function (k) { o[k] = ''; });
+    o.tiene_cashback = 'no';
+    return o;
+  }
+  var corte = String(o.dia_corte == null ? '' : o.dia_corte).trim();
+  if (corte === '' && respaldo && respaldo.dia_corte !== '' && respaldo.dia_corte != null) corte = String(respaldo.dia_corte);
+  var dc = num(corte);
+  if (!(dc >= 1 && dc <= 31 && dc === Math.floor(dc))) throw new Error('Pon el día de corte de la tarjeta (de 1 a 31)');
+  o.dia_corte = String(dc);
+  var lim = String(o.dia_limite == null ? '' : o.dia_limite).trim();
+  if (lim !== '') {
+    var dl = num(lim);
+    if (!(dl >= 1 && dl <= 31 && dl === Math.floor(dl))) throw new Error('El día límite de pago debe ser de 1 a 31');
+    o.dia_limite = String(dl);
+  } else o.dia_limite = '';
+  if (o.tiene_cashback === '') o.tiene_cashback = 'no';
+  var pct = String(o.cashback_pct == null ? '' : o.cashback_pct).trim();
+  if (pct !== '' && !(num(pct) >= 0 && num(pct) <= 100)) throw new Error('El porcentaje de cashback debe ser de 0 a 100');
+  var tope = String(o.cashback_tope == null ? '' : o.cashback_tope).trim();
+  if (tope !== '' && !(num(tope) >= 0)) throw new Error('El tope de cashback debe ser una cantidad en pesos');
+  if (o.tiene_cashback === 'si' && !(num(pct) > 0)) throw new Error('Pon el porcentaje de cashback o apaga el cashback de esta tarjeta');
+  o.cashback_pct = pct; o.cashback_tope = tope;
+  return o;
 }
 
 /** Calcula todas las cuentas. Devuelve [{id, nombre, tipo, color, resumen, config, movimientos}]. */
@@ -522,7 +592,10 @@ function cdCalcularCuentas(movs, cfgCruda, cuentas, hoy) {
   (movs || []).forEach(function (m) { porCuenta[cdCuentaDeMov(m, cuentas)].push(m); });
   return cuentas.map(function (c, i) {
     var cfgC = cdConfigDeCuenta(cfgCruda, c, i === 0);
-    return { id: c.id, nombre: c.nombre, tipo: c.tipo, color: c.color, resumen: calcularCaudal(porCuenta[c.id], cfgC, hoy), config: cdNormalizarConfig(cfgC), movimientos: porCuenta[c.id] };
+    var conf = cdNormalizarConfig(cfgC);
+    conf.tiene_cashback = cfgC.tiene_cashback;
+    conf.cashback_guardado = cfgC.cashback_guardado;
+    return { id: c.id, nombre: c.nombre, tipo: c.tipo, color: c.color, resumen: calcularCaudal(porCuenta[c.id], cfgC, hoy), config: conf, movimientos: porCuenta[c.id] };
   });
 }
 

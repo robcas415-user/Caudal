@@ -106,6 +106,18 @@ En la app de tu mamá:
   días para el pago, el pago venció, no alcanza en débito, el Libre está bajo o
   negativo, o hoy cortó la tarjeta), manda un correo a `avisos_correo`.
   Prueba: menú **Caudal → Probar correo de recordatorio**.
+- **La hoja Cuentas es la base de datos de las cuentas** (una fila por cuenta): `tipo` (`credito` o
+  `debito`), `dia_corte` y `dia_limite` (solo crédito; el corte es obligatorio), `tiene_cashback`
+  (`si`/`no`, solo crédito) con `cashback_pct`, `categorias_cashback` y `cashback_tope` (solo si lleva
+  cashback; al apagarlo se conservan), y `aviso_libre_bajo`. Al cambiar el tipo en Ajustes, la app muestra
+  solo lo que aplica y la hoja nunca queda con datos que no corresponden (una cuenta de solo débito no
+  guarda corte, límite ni cashback). Las hojas de versiones anteriores se actualizan solas.
+- **Cada cuenta tiene su propio aviso.** En Ajustes, con la cuenta elegida, se pone «Avisar si el
+  Libre baja de» (en una cuenta de solo débito, «…el saldo baja de»). DiDi conserva $500; Nu
+  empieza sin umbral (solo avisa si queda en negativo) hasta que se le ponga uno. Las cuentas de
+  solo débito no tienen corte ni límite, así que no mandan recordatorios de pago. Con varias
+  cuentas, cada aviso y cada correo empieza con el nombre de la cuenta (por ejemplo «Nu: Te quedan
+  solo $300.00 en Nu.»).
 - **Notificación en el iPhone**: automatización diaria de Atajos (ver ATAJOS.md, atajo 4).
 
 ## Problemas comunes

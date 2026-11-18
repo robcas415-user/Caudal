@@ -131,7 +131,8 @@ Notificación sin correo: el iPhone pregunta cada mañana si hay algo pendiente.
 
 Solo avisa los días configurados (`avisos_dias_antes`, por defecto 5, 2 y 0 días antes
 del límite), cuando el pago venció, cuando no alcanza en débito, cuando el Libre está bajo
-o negativo, y el día del corte.
+o negativo, y el día del corte. Con varias cuentas cada aviso dice de cuál es, y cada una
+tiene su propio umbral de aviso (las de solo débito avisan saldo bajo o negativo, sin corte).
 
 ## 5. (Opcional) "Recibí dinero" con Siri
 
