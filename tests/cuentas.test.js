@@ -36,9 +36,10 @@ test('la migración no cambia nada de DiDi', () => {
   assert.ok(est.ok, est.error);
   // Pestaña Cuentas creada con DiDi (crédito, datos de Config) y Nu (solo débito, morado).
   const cta = libro.getSheetByName('Cuentas');
-  assert.deepStrictEqual(cta.d[0], C.CAUDAL_CUENTA_CAMPOS || ['id', 'nombre', 'tipo', 'color', 'dia_corte', 'dia_limite', 'cashback_pct', 'categorias_cashback', 'cashback_tope']);
-  assert.deepStrictEqual(cta.d[1].slice(0, 9), ['didi', 'DiDi', 'credito', '#2f6b4a', '26', '11', '6', 'Súper', '500']);
+  assert.deepStrictEqual(cta.d[0], ['id', 'nombre', 'tipo', 'color', 'dia_corte', 'dia_limite', 'cashback_pct', 'categorias_cashback', 'cashback_tope', 'aviso_libre_bajo']);
+  assert.deepStrictEqual(cta.d[1].slice(0, 10), ['didi', 'DiDi', 'credito', '#2f6b4a', '26', '11', '6', 'Súper', '500', '500']);   // DiDi conserva su aviso de $500
   assert.deepStrictEqual(cta.d[2].slice(0, 4), ['nu', 'Nu', 'debito', '#820ad1']);
+  assert.ok(!cta.d[2][9], 'Nu empieza sin aviso (no se inventa un umbral)');
   // Movimientos: mismas 11 columnas intactas + "cuenta" = didi.
   const mov = libro.getSheetByName('Movimientos');
   assert.strictEqual(mov.d[0][11], 'cuenta');
@@ -107,11 +108,58 @@ test('Ajustes por cuenta y cuentas nuevas', () => {
   assert.ok(est.cuentas.every(c => c.id.indexOf(' ') < 0));
 });
 
-test('recordatorios: solo cuentas de crédito y con el texto de siempre', () => {
-  const gs = cargar(libroViejo(), codigo, HOY);
-  gs.post({ accion: 'agregar', mov: { tipo: 'compra', monto: '5000', cuenta: 'nu' } });   // Nu en negativo
+test('avisos por cuenta: cada una con su umbral y el correo dice de cuál habla', () => {
+  const libro = libroViejo();
+  const gs = cargar(libro, codigo, HOY);
+  // Nu sin umbral: solo avisa si queda en negativo.
+  gs.post({ accion: 'agregar', mov: { tipo: 'deposito', monto: '300', cuenta: 'nu' } });
+  assert.ok(gs.get({ accion: 'aviso' }).avisos.every(a => a.indexOf('Nu') < 0), 'sin umbral no hay aviso de saldo bajo');
+  // Se le pone umbral de $500 a Nu: con $300 avisa, y el texto dice "Nu".
+  let r = gs.post({ accion: 'config', valores: {}, cuenta: 'nu', valores_cuenta: { aviso_libre_bajo: 500 } });
+  assert.ok(r.ok, r.error);
+  assert.strictEqual(libro.getSheetByName('Cuentas').d[2][9], '500');
+  let av = gs.get({ accion: 'aviso' }).avisos;
+  assert.ok(av.some(a => /^Nu: Te quedan solo \$300\.00 en Nu\./.test(a)), av.join(' | '));
+  // El umbral de Nu no mueve el de DiDi (sigue en $500) ni al revés.
+  const est = gs.get({ accion: 'estado' });
+  assert.strictEqual(String(est.cuentas[0].config.aviso_libre_bajo), '500');
+  assert.strictEqual(String(est.cuentas[1].config.aviso_libre_bajo), '500');
+  gs.post({ accion: 'config', valores: {}, cuenta: 'nu', valores_cuenta: { aviso_libre_bajo: 100 } });
+  av = gs.get({ accion: 'aviso' }).avisos;
+  assert.ok(av.every(a => a.indexOf('Nu') < 0), 'con umbral 100 y saldo 300 ya no avisa');
+  assert.strictEqual(String(gs.get({ accion: 'estado' }).cuentas[0].config.aviso_libre_bajo), '500');
+  // Nu en negativo: alerta aunque no haya umbral.
+  gs.post({ accion: 'agregar', mov: { tipo: 'compra', monto: '5000', cuenta: 'nu' } });
+  av = gs.get({ accion: 'aviso' }).avisos;
+  assert.ok(av.some(a => a.indexOf('Nu: Anotaste') === 0), av.join(' | '));
+  // Ningún aviso de Nu habla de corte, límite o pago de tarjeta.
+  assert.ok(av.filter(a => a.indexOf('Nu') === 0).every(a => !/corte|límite|Paga|tarjeta/i.test(a.replace(/Nu: Anotaste.*Cuadrar\./, ''))));
+});
+
+test('avisos por cuenta: una sola cuenta de crédito conserva el texto de siempre', () => {
+  const libro = libroViejo();
+  libro.getSheetByName('Config').d.forEach(f => { if (f[0] === 'aviso_libre_bajo') f[1] = 5000; });   // DiDi con Libre bajo
+  const gs = cargar(libro, codigo, HOY);
   const av = gs.get({ accion: 'aviso' }).avisos;
-  assert.ok(av.every(a => a.indexOf('Nu') < 0), av.join(' | '));
+  assert.ok(av.some(a => /^DiDi: /.test(a) && /Libre|quedan/i.test(a)), av.join(' | '));
+});
+
+test('migración: una hoja con Cuentas de la versión anterior recibe la columna del aviso', () => {
+  const libro = libroViejo();
+  const gs = cargar(libro, codigo, HOY);
+  gs.get({ accion: 'estado' });
+  const cta = libro.getSheetByName('Cuentas');
+  // Se simula la hoja de la versión 3: sin la columna aviso_libre_bajo.
+  cta.d.forEach(f => { f.length = 9; });
+  const gs2 = cargar(libro, codigo, HOY);
+  const est = gs2.get({ accion: 'estado' });
+  assert.ok(est.ok, est.error);
+  assert.strictEqual(cta.d[0][9], 'aviso_libre_bajo');
+  assert.strictEqual(cta.d[1][9], '500');
+  assert.ok(!cta.d[2][9]);
+  assert.strictEqual(String(est.cuentas[0].config.aviso_libre_bajo), '500');
+  gs2.get({ accion: 'estado' });
+  assert.strictEqual(cta.d[0].filter(x => x === 'aviso_libre_bajo').length, 1);
 });
 
 test('colores: DiDi se queda igual; otro color cambia el tono y conserva el contraste', () => {

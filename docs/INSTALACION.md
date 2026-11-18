@@ -106,6 +106,12 @@ En la app de tu mamá:
   días para el pago, el pago venció, no alcanza en débito, el Libre está bajo o
   negativo, o hoy cortó la tarjeta), manda un correo a `avisos_correo`.
   Prueba: menú **Caudal → Probar correo de recordatorio**.
+- **Cada cuenta tiene su propio aviso.** En Ajustes, con la cuenta elegida, se pone «Avisar si el
+  Libre baja de» (en una cuenta de solo débito, «…el saldo baja de»). DiDi conserva $500; Nu
+  empieza sin umbral (solo avisa si queda en negativo) hasta que se le ponga uno. Las cuentas de
+  solo débito no tienen corte ni límite, así que no mandan recordatorios de pago. Con varias
+  cuentas, cada aviso y cada correo empieza con el nombre de la cuenta (por ejemplo «Nu: Te quedan
+  solo $300.00 en Nu.»).
 - **Notificación en el iPhone**: automatización diaria de Atajos (ver ATAJOS.md, atajo 4).
 
 ## Problemas comunes

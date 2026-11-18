@@ -373,8 +373,9 @@ function cdAvisos(r, cfg) {
   var av = [];
   var t = r.tarjeta;
   if (r.tipo === 'debito') {
-    // Cuenta de solo débito: no hay tarjeta, corte ni cashback; solo avisa si el saldo quedó en negativo.
+    // Cuenta de solo débito: no hay tarjeta, corte ni cashback; avisa si el saldo es bajo o quedó en negativo.
     if (r.libre < 0) av.push({ nivel: 'alerta', clave: 'libre_negativo', texto: 'Anotaste ' + cdPesos(-r.libre) + ' más de lo que hay en ' + (r.cuenta || 'esta cuenta') + '. Revisa con Cuadrar.' });
+    else if (r.estado_libre === 'bajo') av.push({ nivel: 'atencion', clave: 'libre_bajo', texto: 'Te quedan solo ' + cdPesos(r.libre) + (r.cuenta ? ' en ' + r.cuenta : '') + '.' });
     return av;
   }
   if (r.libre < 0) {
@@ -451,9 +452,12 @@ function cdResumenTexto(r, conCuenta) {
  *   tipo 'debito':  solo débito: saldo y movimientos, sin tarjeta, corte ni cashback.
  * Los movimientos sin cuenta (los de antes) son de la primera cuenta.
  */
-var CAUDAL_CUENTA_CAMPOS = ['id', 'nombre', 'tipo', 'color', 'dia_corte', 'dia_limite', 'cashback_pct', 'categorias_cashback', 'cashback_tope'];
-/** Lo que cada cuenta de crédito guarda aparte (lo demás de Config es de todas). */
-var CAUDAL_CAMPOS_TARJETA = ['dia_corte', 'dia_limite', 'cashback_pct', 'categorias_cashback', 'cashback_tope'];
+var CAUDAL_CUENTA_CAMPOS = ['id', 'nombre', 'tipo', 'color', 'dia_corte', 'dia_limite', 'cashback_pct', 'categorias_cashback', 'cashback_tope', 'aviso_libre_bajo'];
+/**
+ * Lo que cada cuenta guarda aparte (lo demás de Config es de todas). Corte, límite y cashback solo
+ * aplican a cuentas de crédito; aviso_libre_bajo (avisar si el saldo baja de…) es de todas.
+ */
+var CAUDAL_CAMPOS_TARJETA = ['dia_corte', 'dia_limite', 'cashback_pct', 'categorias_cashback', 'cashback_tope', 'aviso_libre_bajo'];
 /** El verde bosque de siempre (DiDi). Con este color la app se ve exactamente igual que antes. */
 var CD_COLOR_BASE = '#2f6b4a';
 
@@ -475,7 +479,7 @@ function cdCuentasNormalizar(filas) {
     CAUDAL_CAMPOS_TARJETA.forEach(function (k) { c[k] = f[k] == null ? '' : f[k]; });
     out.push(c);
   });
-  if (!out.length) out.push({ id: 'didi', nombre: 'DiDi', tipo: 'credito', color: CD_COLOR_BASE, dia_corte: '', dia_limite: '', cashback_pct: '', categorias_cashback: '', cashback_tope: '' });
+  if (!out.length) out.push({ id: 'didi', nombre: 'DiDi', tipo: 'credito', color: CD_COLOR_BASE, dia_corte: '', dia_limite: '', cashback_pct: '', categorias_cashback: '', cashback_tope: '', aviso_libre_bajo: '' });
   return out;
 }
 
@@ -498,7 +502,8 @@ function cdCuentaDeMov(m, cuentas) {
 /**
  * Config de una cuenta: lo general de Config + lo de su tarjeta (de su fila en Cuentas).
  * La primera cuenta usa Config cuando su celda está vacía (así lo de antes sigue igual).
- * Una cuenta de solo débito no tiene cashback ni aviso de Libre bajo.
+ * Una cuenta de solo débito no tiene cashback. El aviso de "Libre bajo" es de cada cuenta: la primera
+ * usa el de Config si el suyo está vacío; las demás, solo el suyo (vacío = no avisar).
  */
 function cdConfigDeCuenta(cfgCruda, cuenta, esPrimera) {
   var out = {};
@@ -508,7 +513,7 @@ function cdConfigDeCuenta(cfgCruda, cuenta, esPrimera) {
     if (v !== '' && v != null) out[k] = v;
     else if (!esPrimera) out[k] = k === 'cashback_pct' ? 0 : '';
   });
-  if (cuenta.tipo === 'debito') { out.cashback_pct = 0; out.aviso_libre_bajo = ''; }
+  if (cuenta.tipo === 'debito') out.cashback_pct = 0;
   out.cuenta_tipo = cuenta.tipo;
   out.cuenta_nombre = cuenta.nombre;
   out.cuenta_id = cuenta.id;

@@ -74,13 +74,40 @@ function instalar() {
 }
 
 /**
+ * Agrega a Cuentas las columnas que le falten (hojas que ya tenían la pestaña de una versión anterior).
+ * aviso_libre_bajo: la primera cuenta (DiDi) conserva el aviso que ya tenía en Config; las demás
+ * quedan vacías (no avisar) hasta que se ponga uno en Ajustes.
+ */
+function completarColumnasCuentas_() {
+  var h = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOJA_CTA);
+  if (!h || h.getLastRow() < 1) return;
+  var enc = h.getRange(1, 1, 1, Math.max(h.getLastColumn(), 1)).getValues()[0].map(function (x) { return String(x).trim(); });
+  var faltan = CAUDAL_CUENTA_CAMPOS.filter(function (k) { return enc.indexOf(k) < 0; });
+  if (!faltan.length) return;
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var col = enc.filter(String).length;       // justo después de la última columna con título
+    var cfg = leerConfigCruda_();
+    faltan.forEach(function (k) {
+      col++;
+      h.getRange(1, col).setValue(k).setFontWeight('bold');
+      h.getRange(2, col, Math.max(1, h.getMaxRows() - 1), 1).setNumberFormat('@');
+      if (k === 'aviso_libre_bajo' && h.getLastRow() >= 2 && cfg.aviso_libre_bajo !== undefined && cfg.aviso_libre_bajo !== '') h.getRange(2, col).setValue(String(cfg.aviso_libre_bajo));
+    });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
  * Cuentas (una sola vez, sola): crea la pestaña Cuentas con DiDi (los datos de su tarjeta salen de
  * Config) y Nu (solo débito), y agrega la columna "cuenta" a Movimientos marcando los de antes como
  * DiDi. No borra ni mueve nada: los movimientos de siempre quedan igual, solo ganan su cuenta.
  */
 function asegurarCuentas_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  if (ss.getSheetByName(HOJA_CTA)) return;
+  if (ss.getSheetByName(HOJA_CTA)) { completarColumnasCuentas_(); return; }
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
@@ -105,8 +132,8 @@ function asegurarCuentas_() {
     var tarjeta = function (k) { return cfg[k] === undefined || cfg[k] === null ? '' : cfg[k]; };
     var filas = [
       CAUDAL_CUENTA_CAMPOS,
-      ['didi', 'DiDi', 'credito', CD_COLOR_BASE, tarjeta('dia_corte'), tarjeta('dia_limite'), tarjeta('cashback_pct'), tarjeta('categorias_cashback'), tarjeta('cashback_tope')],
-      ['nu', 'Nu', 'debito', '#820ad1', '', '', '', '', '']
+      ['didi', 'DiDi', 'credito', CD_COLOR_BASE, tarjeta('dia_corte'), tarjeta('dia_limite'), tarjeta('cashback_pct'), tarjeta('categorias_cashback'), tarjeta('cashback_tope'), tarjeta('aviso_libre_bajo')],
+      ['nu', 'Nu', 'debito', '#820ad1', '', '', '', '', '', '']
     ];
     var h = ss.insertSheet(HOJA_CTA);
     h.getRange(1, 1, filas.length, CAUDAL_CUENTA_CAMPOS.length).setNumberFormat('@');
@@ -545,19 +572,20 @@ function marcarActiva_(id) {
 /* ======================= recordatorios ======================= */
 
 /**
- * Recordatorios de hoy de las cuentas de crédito (las de solo débito no tienen corte ni pago).
- * Con una sola tarjeta el texto es el mismo de siempre; con varias, cada aviso dice de cuál es.
- * Devuelve textos; con conResumen, [{texto}] y el resumen de cada cuenta para el correo.
+ * Recordatorios de hoy de todas las cuentas. Las de crédito avisan de corte, pago y Libre bajo;
+ * las de solo débito, de saldo bajo o negativo (no tienen corte ni pago). Cada cuenta usa su propio
+ * umbral. Con una sola cuenta el texto es el de siempre; con varias, cada aviso dice de cuál es.
+ * Devuelve textos; con conResumen, también el resumen de las cuentas que tuvieron avisos (para el correo).
  */
 function avisosDeHoy_(conResumen) {
   var cfgCruda = leerConfigCruda_(), cuentas = leerCuentas_();
-  var todas = cdCalcularCuentas(leerMovimientos_(), cfgCruda, cuentas, hoy_()).filter(function (t) { return t.tipo === 'credito'; });
+  var todas = cdCalcularCuentas(leerMovimientos_(), cfgCruda, cuentas, hoy_());
   var varias = todas.length > 1, out = [], resumenes = [];
   todas.forEach(function (t) {
     var i = cuentas.map(function (c) { return c.id; }).indexOf(t.id);
     var av = cdAvisosDelDia(t.resumen, cdConfigDeCuenta(cfgCruda, cuentas[i], i === 0));
     av.forEach(function (a) { out.push(varias ? t.nombre + ': ' + a : a); });
-    resumenes.push(t);
+    if (av.length) resumenes.push(t);
   });
   return conResumen ? { avisos: out, cuentas: resumenes, varias: varias } : out;
 }
@@ -585,8 +613,9 @@ function probarCorreo() {
 
 function enviarCorreo_(correos, x, avisos, cfg) {
   var cifras = x.cuentas.map(function (t) {
-    var r = t.resumen;
-    return (x.varias ? '\n\n' + t.nombre + ':' : '\n') +
+    var r = t.resumen, enc = x.varias ? '\n\n' + t.nombre + ':' : '\n';
+    if (t.tipo === 'debito') return enc + '\nSaldo en ' + t.nombre + ': ' + cdPesos(r.libre);
+    return enc +
       '\nLibre ahora: ' + cdPesos(r.libre) +
       '\nEn ' + t.nombre + ' débito deberías tener: ' + cdPesos(r.saldo_debito) +
       '\nDeuda total de la tarjeta: ' + cdPesos(r.deuda_tarjeta);

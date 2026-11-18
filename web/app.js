@@ -953,6 +953,7 @@
   var CAMPOS_ANCHOS = { categorias: 1, categorias_cashback: 1, categoria_default: 1, avisos_dias_antes: 1, avisos_correo: 1, cashback_periodo: 1, cashback_destino: 1 };
   var ETQ_OPCION = { mes: 'Mes', corte: 'De corte a corte', tarjeta: 'La tarjeta', debito: 'Débito' };
   // Textos más claros que los de la hoja (la hoja guarda los mismos valores).
+  var ETQ_SALDO_BAJO = ['Avisar si el saldo baja de', 'En pesos, de esta cuenta. Vacío = no avisar.'];
   var ETQ_CFG = {
     nombre: ['Nombre', 'Cómo te saluda la app.'],
     dia_corte: ['Día de corte', 'Cuando {cuenta} cierra el estado de cuenta.'],
@@ -961,7 +962,7 @@
     categoria_default: ['Categoría del ícono Anotar', 'Las compras rápidas se guardan en esta.'],
 
     cashback_tope: ['Tope al mes', 'Lo máximo que regresa. DiDi Card: $500.'],
-    aviso_libre_bajo: ['Avisar si el Libre baja de', 'En pesos. Vacío = no avisar.'],
+    aviso_libre_bajo: ['Avisar si el Libre baja de', 'En pesos, de esta cuenta. Vacío = no avisar.'],
     avisos_dias_antes: ['Recordar el pago', 'Elige con cuánta anticipación te avisa.'],
     avisos_correo: ['Mandar recordatorios a', 'Correos separados por coma. Vacío = no mandar.']
   };
@@ -1242,6 +1243,7 @@
     lista.appendChild(h('div', { class: 'fila campo-fila' }, [h('label', { for: 'cta-nombre', html: '<b>Nombre de la cuenta</b><small>Así aparece arriba y en el widget.</small>' }), inNom]));
     var tipo = segmentado('cta-tipo', [{ v: 'credito', t: 'Tarjeta y débito' }, { v: 'debito', t: 'Solo débito' }], c.tipo, function (v) {
       $$('[data-solo-credito]').forEach(function (x) { x.hidden = v === 'debito'; });
+      var et = $('[data-etq-libre]'); if (et) et.textContent = (v === 'debito' ? ETQ_SALDO_BAJO : ETQ_CFG.aviso_libre_bajo)[0];
     });
     lista.appendChild(h('div', { class: 'fila campo-fila campo-ancho' }, [h('label', { html: '<b>Tipo</b><small>Solo débito: saldo y movimientos, sin tarjeta, corte ni cashback.</small>' }), tipo]));
     var color = editorColor(c);
@@ -1329,8 +1331,9 @@
           control = antes || despues ? h('span', { class: 'campo-unidad' }, [antes ? h('span', { class: 'unidad', text: antes }) : null, input, despues ? h('span', { class: 'unidad', text: despues }) : null]) : input;
           if (clave.indexOf('dia_') === 0) input.addEventListener('input', previaFechas);
         }
-        var filaCampo = h('div', { class: 'fila campo-fila' + (CAMPOS_ANCHOS[clave] ? ' campo-ancho' : '') }, [
-          h('label', { for: id, html: '<b>' + esc(etq[0]) + '</b>' + (etq[1] ? '<small>' + esc(etq[1]) + '</small>' : '') }), control
+        if (clave === 'aviso_libre_bajo' && estado.cuenta.tipo === 'debito') etq = ETQ_SALDO_BAJO;
+        var filaCampo = h('div', { class: 'fila campo-fila' + (CAMPOS_ANCHOS[clave] ? ' campo-ancho' : ''), 'data-solo-credito': clave === 'avisos_dias_antes' ? '' : null, hidden: clave === 'avisos_dias_antes' && estado.cuenta.tipo === 'debito' }, [
+          h('label', { for: id, html: '<b' + (clave === 'aviso_libre_bajo' ? ' data-etq-libre' : '') + '>' + esc(etq[0]) + '</b>' + (etq[1] ? '<small>' + esc(etq[1]) + '</small>' : '') }), control
         ]);
         if (esCb) { filasCb.push(filaCampo); filaCampo.hidden = !cbEditor.activo(); }
         lista.appendChild(filaCampo);
