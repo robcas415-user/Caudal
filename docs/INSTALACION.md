@@ -99,6 +99,12 @@ En la app de tu mamá:
   [ATAJOS.md](ATAJOS.md)
 - Widget en la pantalla de inicio: [`scriptable/Caudal-widget.js`](../scriptable/Caudal-widget.js)
   (instrucciones al inicio del archivo; app gratis **Scriptable** del App Store).
+  - **Mediano, sin parámetro**: un solo widget con todas las cuentas apiladas (una ficha de vidrio por
+    cuenta, con su color y lo que le toca según su tipo). Vistas previas en
+    [`capturas-widget/`](capturas-widget/) (simulación, no capturas del iPhone).
+  - **Con parámetro** (`DiDi`, `Nu`…): solo esa cuenta, chico o mediano.
+  - Cómo actualizarlo: en Scriptable abre el script, borra todo, pega el archivo nuevo y vuelve a poner
+    `API` y `CLAVE`. El widget de la pantalla de inicio se actualiza solo.
 
 ## 6. Recordatorios
 

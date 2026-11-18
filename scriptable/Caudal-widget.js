@@ -1,5 +1,5 @@
 // Caudal — widget informativo para el iPhone (app gratuita "Scriptable").
-// Estilo v3: el widget es una tarjeta de vidrio de la app (grafito con tinte esmeralda y filo de luz).
+// Estilo v4: con varias cuentas, una ficha de vidrio por cuenta. El widget es una tarjeta de vidrio de la app (grafito con tinte esmeralda y filo de luz).
 // Sin cajas dentro de cajas: filas separadas por líneas finas, cada dato con su ícono y color
 // (hoja = lo libre, pistache = tarjeta y cashback, azul = débito).
 // Pantalla de inicio: Libre, pago de la tarjeta, débito y cashback.
@@ -13,12 +13,17 @@ const CLAVE = 'PEGA_AQUI_LA_CLAVE';
 //    Pantalla bloqueada: mantener presionada → Personalizar → Pantalla bloqueada →
 //    toca la fila de widgets → Scriptable → elige el rectangular → Script: este.
 //
-// Cuentas (DiDi, Nu…): el widget muestra la cuenta que se eligió por última vez en la app, con su
-// color. Para fijar una cuenta: mantener presionado el widget → Editar widget → Parameter: Nu
-// (o DiDi). Así puedes tener un widget de cada cuenta.
+// Cuentas (DiDi, Nu…):
+//  - Sin parámetro, en tamaño MEDIANO (o grande): un solo widget con las cuentas apiladas, una "ficha de
+//    vidrio" por cuenta (DiDi arriba, Nu abajo), cada una con lo que le toca según su tipo, y un fondo que
+//    pasa suavemente del color de una cuenta al de la otra.
+//  - Con parámetro (mantener presionado el widget → Editar widget → Parameter: Nu o DiDi): solo esa cuenta,
+//    en tamaño chico o mediano. Así puedes tener un widget de cada cuenta.
+//  - Tamaño chico sin parámetro: la cuenta que se eligió por última vez en la app.
 //
-// Para anotar gastos se usa el ícono "Anotar" (atajo), que corre sin abrir apps.
-// Tocar el widget lo actualiza al momento (abre Scriptable un instante).
+// Tocar el widget abre la app (en Safari, ya conectada). Para anotar gastos se usa el ícono "Anotar" (atajo).
+const ABRIR_APP = true;   // false = tocar el widget lo actualiza al momento (abre Scriptable un instante)
+const APP = 'https://robcas415-user.github.io/Caudal/';
 
 // Paleta de la app (v53). Con otra cuenta, la hoja manda la paleta con el color de esa cuenta.
 const C = {
@@ -230,6 +235,154 @@ function bloqueoRect(w, r) {
     Font.mediumSystemFont(12), BLANCO(0.85), { minimumScaleFactor: 0.7 });
 }
 
+
+/* ---------- varias cuentas en un solo widget (fichas de vidrio apiladas) ---------- */
+
+const MAX_FICHAS = { medium: 2, large: 5 };
+
+async function cargarTodas(familia) {
+  const fm = FileManager.local();
+  const cache = fm.joinPath(fm.documentsDirectory(), 'caudal-cache-todas.json');
+  try {
+    const rq = new Request(API + '?accion=cuentas&token=' + encodeURIComponent(CLAVE));
+    rq.timeoutInterval = 20;
+    const lista = await rq.loadJSON();
+    if (!lista.ok) throw new Error(lista.error);
+    const cuentas = lista.cuentas.slice(0, MAX_FICHAS[familia] || 2);
+    const cada = await Promise.all(cuentas.map(async (c) => {
+      const q = new Request(API + '?accion=resumen&token=' + encodeURIComponent(CLAVE) + '&cuenta=' + encodeURIComponent(c.id));
+      q.timeoutInterval = 20;
+      const j = await q.loadJSON();
+      if (!j.ok) throw new Error(j.error);
+      return { r: j.resumen, cuenta: j.cuenta, paleta: j.paleta };
+    }));
+    const d = { lista: cada, total: lista.cuentas.length, t: Date.now() };
+    fm.writeString(cache, JSON.stringify(d));
+    return Object.assign(d, { viejo: false });
+  } catch (e) {
+    if (fm.fileExists(cache)) return Object.assign(JSON.parse(fm.readString(cache)), { viejo: true });
+    return { error: String(e.message || e) };
+  }
+}
+
+/** Colores y texto del estado de una cuenta, con SU paleta (no la global). */
+function estadoDe(d) {
+  const p = d.paleta, r = d.r, k = r.estado_libre in { bien: 1, bajo: 1, negativo: 1 } ? r.estado_libre : 'bien';
+  const fondo = k === 'bien' ? p.widget_bien : k === 'bajo' ? p.widget_bajo : p.widget_negativo;
+  const acento = k === 'bien' ? p.hoja : k === 'bajo' ? p.pistache : p.coral;
+  let texto = k === 'bien' ? 'Vas bien' : k === 'bajo' ? 'Queda poco' : 'Te pasaste';
+  if (r.tipo === 'debito' && k === 'negativo') texto = 'Revisa';
+  return { fondo, acento, texto, pal: p };
+}
+
+/** Mezcla de dos colores hex (t de 0 a 1). */
+function mezcla(a, b, t) {
+  const f = (h) => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const x = f(a), y = f(b);
+  return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('');
+}
+
+/** Fondo del widget: del tono de la primera cuenta al de la última, con la parte media más oscura. */
+function fondoVarias(ests) {
+  const A = ests[0].fondo, B = ests[ests.length - 1].fondo;
+  const g = new LinearGradient();
+  g.colors = [A[0], A[1], mezcla(A[2], B[2], 0.5), B[1], B[0]].map(h => new Color(h));
+  g.locations = [0, 0.30, 0.5, 0.70, 1];
+  g.startPoint = new Point(0.1, 0); g.endPoint = new Point(0.9, 1);
+  return g;
+}
+
+/** Cristal de la ficha: velo claro con brillo en la parte de arriba (iOS no deja desenfocar de verdad). */
+function cristal(ancho, alto) {
+  const dc = new DrawContext();
+  dc.size = new Size(ancho, alto); dc.opaque = false; dc.respectScreenScale = true;
+  dc.setFillColor(new Color('#ffffff', 0.075)); dc.fillRect(new Rect(0, 0, ancho, alto));
+  const franjas = 22, zona = alto * 0.55;
+  for (let i = 0; i < franjas; i++) {
+    const a = 0.16 * Math.pow(1 - i / franjas, 2);
+    dc.setFillColor(new Color('#ffffff', a));
+    dc.fillRect(new Rect(0, (zona / franjas) * i, ancho, zona / franjas + 0.5));
+  }
+  dc.setFillColor(new Color('#ffffff', 0.22)); dc.fillRect(new Rect(0, 0, ancho, 1.2));   // filo de luz arriba
+  return dc.getImage();
+}
+
+/** Un indicador chico (etiqueta + valor) para el lado derecho de la ficha. */
+function indicador(stack, etiqueta, valor, nota, colorValor, ancho) {
+  const v = stack.addStack(); v.layoutVertically(); v.size = new Size(ancho, 0);
+  texto(v, etiqueta, Font.mediumSystemFont(9), BLANCO(0.68), { minimumScaleFactor: 0.7 });
+  v.addSpacer(1);
+  const f = v.addStack(); f.bottomAlignContent();
+  texto(f, valor, Font.boldSystemFont(14), colorValor || BLANCO(), { minimumScaleFactor: 0.6 });
+  if (nota) { f.addSpacer(3); texto(f, nota, Font.semiboldSystemFont(9), BLANCO(0.72), { minimumScaleFactor: 0.6 }); }
+}
+
+/** Lo relevante de cada cuenta según su tipo: tarjeta (y cashback si lo hay), o lo del mes en débito. */
+function indicadoresDe(d, est) {
+  const r = d.r, P = est.pal, sin = [];
+  if (r.tipo === 'debito') {
+    return [['Gastado mes', sinCentavos(r.gastado_mes || 0), '', null], ['Entró mes', sinCentavos(r.recibido_mes || 0), '', col(P.hoja)]];
+  }
+  if (r.por_pagar > 0) {
+    const dd = r.dias_para_pagar;
+    sin.push([dd < 0 ? 'Tarjeta vencida' : 'Toca pagar', sinCentavos(r.por_pagar), plazo(r), dd <= 1 ? col(P.coral) : col(P.pistache)]);
+  } else if (r.deuda_tarjeta > 0) sin.push(['Debes en tarjeta', sinCentavos(r.deuda_tarjeta), '', null]);
+  else sin.push(['Tarjeta', 'Sin deuda', '', col(P.hoja)]);
+  // Cashback solo si esta tarjeta lo lleva (si no ha ganado nada, en su lugar va el saldo en débito).
+  if ((r.cashback_estimado || 0) > 0) sin.push(['Cashback', sinCentavos(r.cashback_estimado), 'del mes', col(P.pistache)]);
+  else sin.push(['En débito', sinCentavos(r.saldo_debito), '', col(P.azul)]);
+  return sin;
+}
+
+function ficha(w, d, est, alto, ancho) {
+  const r = d.r, nom = d.cuenta ? d.cuenta.nombre : '';
+  const f = w.addStack(); f.layoutHorizontally(); f.centerAlignContent();
+  f.size = new Size(0, alto); f.cornerRadius = 16; f.setPadding(6, 12, 6, 12);
+  f.backgroundImage = cristal(ancho, alto);
+  f.borderWidth = 1; f.borderColor = BLANCO(0.17);
+
+  const izq = f.addStack(); izq.layoutVertically();
+  const l1 = izq.addStack(); l1.centerAlignContent();
+  texto(l1, '●', Font.systemFont(8), col(est.acento)); l1.addSpacer(4);
+  texto(l1, nom, Font.semiboldSystemFont(11), BLANCO(0.9), { minimumScaleFactor: 0.7 });
+  l1.addSpacer(4);
+  texto(l1, est.texto, Font.mediumSystemFont(10), col(est.acento), { minimumScaleFactor: 0.7 });
+  izq.addSpacer(1);
+  monto(izq, r.libre, 25, false);
+  f.addSpacer();
+
+  const ind = indicadoresDe(d, est);
+  ind.forEach((x, i) => {
+    const sep = f.addStack(); sep.backgroundColor = BLANCO(0.12); sep.size = new Size(1, alto - 22);
+    f.addSpacer(7);
+    indicador(f, x[0], x[1], x[2], x[3], 72);
+    if (i < ind.length - 1) f.addSpacer(7);
+  });
+}
+
+function variasFichas(datos) {
+  const w = new ListWidget();
+  w.refreshAfterDate = new Date(Date.now() + 5 * 60 * 1000);
+  const fam = config.widgetFamily || 'medium';
+  const ests = datos.lista.map(estadoDe);
+  w.backgroundGradient = fondoVarias(ests);
+  w.setPadding(9, 10, 5, 10);
+  const alto = 56, ancho = 310;
+  datos.lista.forEach((d, i) => {
+    if (i > 0) w.addSpacer(5);
+    ficha(w, d, ests[i], fam === 'large' ? 62 : alto, ancho);
+  });
+  w.addSpacer(3);
+  const pie = w.addStack(); pie.centerAlignContent();
+  pie.addSpacer();
+  const df = new DateFormatter(); df.locale = 'es_MX'; df.dateFormat = 'h:mm a';
+  const hora = df.string(new Date(datos.t)).replace('a. m.', 'a.m.').replace('p. m.', 'p.m.');
+  texto(pie, (datos.viejo ? 'Sin conexión · ' : 'Actualizado ') + hora + (datos.total > datos.lista.length ? ' · +' + (datos.total - datos.lista.length) + ' más' : ''),
+    Font.mediumSystemFont(9), datos.viejo ? col('#d6e38f', 0.9) : BLANCO(0.55));
+  pie.addSpacer();
+  return w;
+}
+
 let DATOS = null;
 /** Hora de la última actualización: así se sabe si las cifras están al día. */
 function pieHora(stack) {
@@ -239,7 +392,18 @@ function pieHora(stack) {
     Font.mediumSystemFont(9), DATOS.viejo ? col(C.pistache, 0.9) : BLANCO(0.6));
 }
 
+function abrir(w) {
+  if (ABRIR_APP && API.indexOf('http') === 0) w.url = APP + '#api=' + encodeURIComponent(API) + '&clave=' + encodeURIComponent(CLAVE);
+  return w;
+}
+
 async function crear() {
+  const fam0 = config.widgetFamily || 'medium';
+  // Sin parámetro, en mediano o grande: todas las cuentas en un solo widget.
+  if ((CUENTA === 'activa' || CUENTA.toLowerCase() === 'todas') && (fam0 === 'medium' || fam0 === 'large')) {
+    const todas = await cargarTodas(fam0);
+    if (!todas.error && todas.lista.length > 1) return abrir(variasFichas(todas));
+  }
   const datos = await cargar();
   DATOS = datos;
   const fam = config.widgetFamily || 'medium';
@@ -275,7 +439,7 @@ async function crear() {
   if (fam === 'small') chico(w, r, est); else mediano(w, r, est);
 
   if (fam === 'small') { w.addSpacer(2); pieHora(w); }
-  return w;
+  return abrir(w);
 }
 
 const widget = await crear();
