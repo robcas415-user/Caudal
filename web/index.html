@@ -30,7 +30,7 @@
         if (css === '') css = false;   // verde de siempre: no se toca nada
       }
       if (css == null) { var t = JSON.parse(L.getItem('caudal_tema') || 'null'); css = t && t.css; }
-      if (css) { var st = document.createElement('style'); st.id = 'tema-css'; st.textContent = css; document.head.appendChild(st); document.querySelector('link[rel="stylesheet"]').disabled = true; }
+      if (css) { var st = document.createElement('style'); st.id = 'tema-css'; st.textContent = css; document.head.appendChild(st); }
     } catch (e) {} })();
   </script>
 </head>
