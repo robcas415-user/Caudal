@@ -366,12 +366,11 @@
     var cambiar = function (css) {
       if (orden !== temaOrden) { if (despues) despues(); return; }
       var st = $('#tema-css');
-      if (tema.base) { if (st) st.remove(); link.disabled = false; }
-      else {
-        if (!st) { st = document.createElement('style'); st.id = 'tema-css'; link.parentNode.insertBefore(st, link.nextSibling); }
-        if (st.textContent !== css) st.textContent = css;
-        link.disabled = true;
-      }
+      // La hoja de estilos original nunca se apaga ni se vuelve a encender (en Safari, encenderla otra vez
+      // deja ver un instante la página sin estilos). El color va en una copia que se pone encima; con el
+      // verde de siempre esa copia queda vacía.
+      if (!st) { st = document.createElement('style'); st.id = 'tema-css'; link.parentNode.insertBefore(st, link.nextSibling); }
+      if (st.textContent !== css) st.textContent = css;
       ponerMetaColor(tema);
       temaPuesto = clave;
       if (despues) despues();
