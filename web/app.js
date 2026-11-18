@@ -1208,8 +1208,12 @@
     var rueda = h('input', { type: 'color', class: 'color-rueda', value: actual, 'aria-label': 'Otro color' });
     var pintarPrevia = function (col) {
       var tema = cdTema(col), nomb = ($('#cta-nombre') && $('#cta-nombre').value.trim()) || c.nombre;
-      previa.innerHTML = '<div class="heroe-brillo"></div><div class="heroe-top"><span class="heroe-etiqueta">' + punto({ color: col }) + esc(nomb) + '</span><span class="pastilla">Vas bien</span></div>' +
-        '<p class="heroe-monto num">' + montoHtml(1234.5, true) + '</p>';
+      // Con el saldo real de esta cuenta (no una cifra de ejemplo): solo cambia el color.
+      var rc = estado.resumen, est = rc.estado_libre;
+      var pastilla = est === 'negativo' ? (rc.tipo === 'debito' ? 'Revisa' : 'Te pasaste') : est === 'bajo' ? 'Queda poco' : 'Vas bien';
+      var etq = rc.tipo === 'debito' ? 'Tienes en ' + nomb : 'Libre · ' + nomb;
+      previa.innerHTML = '<div class="heroe-brillo"></div><div class="heroe-top"><span class="heroe-etiqueta">' + punto({ color: col }) + esc(etq) + '</span><span class="pastilla">' + pastilla + '</span></div>' +
+        '<p class="heroe-monto num">' + montoHtml(rc.libre, true) + '</p>';
       nota.textContent = (tema.base ? 'El verde de siempre.' : 'Así se verá toda la app con ' + nomb + '.') + (tema.ajustado ? ' Ajustamos un poco el tono para que todo se lea bien.' : '');
     };
     var ruedaBtn;
@@ -1242,6 +1246,11 @@
     return fila;
   }
 
+  var AYUDA_TIPO = {
+    credito: 'Tarjeta y débito: el Libre es lo que hay en débito menos lo que debe la tarjeta. Lleva corte, límite y, si quieres, cashback.',
+    debito: 'Solo débito: saldo y movimientos, sin tarjeta, corte ni cashback.'
+  };
+
   /** Nombre, tipo y color de la cuenta que se está viendo, y el botón para agregar otra. */
   function seccionCuenta() {
     var c = estado.cuenta;
@@ -1250,9 +1259,12 @@
     lista.appendChild(h('div', { class: 'fila campo-fila' }, [h('label', { for: 'cta-nombre', html: '<b>Nombre de la cuenta</b><small>Así aparece arriba y en el widget.</small>' }), inNom]));
     var tipo = segmentado('cta-tipo', [{ v: 'credito', t: 'Tarjeta y débito' }, { v: 'debito', t: 'Solo débito' }], c.tipo, function (v) {
       $$('[data-solo-credito]').forEach(function (x) { x.hidden = v === 'debito'; });
+      var ay = $('#cta-tipo-ayuda'); if (ay) ay.textContent = AYUDA_TIPO[v];
       var et = $('[data-etq-libre]'); if (et) et.textContent = (v === 'debito' ? ETQ_SALDO_BAJO : ETQ_CFG.aviso_libre_bajo)[0];
     });
-    lista.appendChild(h('div', { class: 'fila campo-fila campo-ancho' }, [h('label', { html: '<b>Tipo</b><small>Solo débito: saldo y movimientos, sin tarjeta, corte ni cashback.</small>' }), tipo]));
+    var ayudaTipo = h('small', { id: 'cta-tipo-ayuda', text: AYUDA_TIPO[c.tipo] });
+    var etqTipo = h('label', {}, [h('b', { text: 'Tipo' }), ayudaTipo]);
+    lista.appendChild(h('div', { class: 'fila campo-fila campo-ancho' }, [etqTipo, tipo]));
     var color = editorColor(c);
     lista.appendChild(color);
     inNom.addEventListener('input', color._repintar);
