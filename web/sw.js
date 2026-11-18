@@ -1,5 +1,5 @@
 /* Caudal: guarda la app para que abra rápido y sin señal. Los datos siempre se piden a la hoja. */
-var VERSION = 'caudal-v55';
+var VERSION = 'caudal-v56';
 var ARCHIVOS = ['./', 'index.html', 'styles.css', 'app.js', 'calculos.js', 'config.js', 'manifest.webmanifest', 'icon-192.png', 'apple-touch-icon.png', 'fonts/inter-medium.woff2', 'fonts/inter-semibold.woff2', 'fonts/inter-bold.woff2'];
 
 self.addEventListener('install', function (e) {

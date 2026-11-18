@@ -13,10 +13,14 @@ const CLAVE = 'PEGA_AQUI_LA_CLAVE';
 //    Pantalla bloqueada: mantener presionada → Personalizar → Pantalla bloqueada →
 //    toca la fila de widgets → Scriptable → elige el rectangular → Script: este.
 //
+// Cuentas (DiDi, Nu…): el widget muestra la cuenta que se eligió por última vez en la app, con su
+// color. Para fijar una cuenta: mantener presionado el widget → Editar widget → Parameter: Nu
+// (o DiDi). Así puedes tener un widget de cada cuenta.
+//
 // Para anotar gastos se usa el ícono "Anotar" (atajo), que corre sin abrir apps.
 // Tocar el widget lo actualiza al momento (abre Scriptable un instante).
 
-// Paleta de la app (v53)
+// Paleta de la app (v53). Con otra cuenta, la hoja manda la paleta con el color de esa cuenta.
 const C = {
   hoja: '#93cf9f',      // lo libre, "vas bien"
   pistache: '#d6e38f',  // tarjeta y cashback
@@ -24,7 +28,7 @@ const C = {
   coral: '#f0908a',     // negativo / vencido
 };
 // Fondo: luz esmeralda arriba a la izquierda que cae a casi negro (como la tarjeta Libre).
-const ESTADOS = {
+let ESTADOS = {
   bien: { fondo: ['#1a3d2c', '#101d17', '#0a0f0d'], acento: C.hoja, texto: 'Vas bien' },
   bajo: { fondo: ['#3a4120', '#181b10', '#0c0d09'], acento: C.pistache, texto: 'Queda poco' },
   negativo: { fondo: ['#4a2420', '#1d1110', '#0e0a09'], acento: C.coral, texto: 'Te pasaste' },
@@ -51,24 +55,46 @@ function plazo(r) {
   return 'en ' + d + ' días';
 }
 
+const CUENTA = String((typeof args !== 'undefined' && args.widgetParameter) || 'activa').trim();
+
 async function cargar() {
-  const url = API + '?accion=resumen&token=' + encodeURIComponent(CLAVE);
+  const url = API + '?accion=resumen&token=' + encodeURIComponent(CLAVE) + '&cuenta=' + encodeURIComponent(CUENTA);
   const fm = FileManager.local();
-  const cache = fm.joinPath(fm.documentsDirectory(), 'caudal-cache.json');
+  const cache = fm.joinPath(fm.documentsDirectory(), 'caudal-cache-' + CUENTA.toLowerCase().replace(/[^a-z0-9]/g, '') + '.json');
   try {
     const req = new Request(url);
     req.timeoutInterval = 20;
     const j = await req.loadJSON();
     if (!j.ok) throw new Error(j.error);
-    fm.writeString(cache, JSON.stringify({ r: j.resumen, t: Date.now() }));
-    return { r: j.resumen, viejo: false, t: Date.now() };
+    const d = { r: j.resumen, cuenta: j.cuenta, paleta: j.paleta, varias: (j.cuentas || 1) > 1, t: Date.now() };
+    fm.writeString(cache, JSON.stringify(d));
+    return Object.assign(d, { viejo: false });
   } catch (e) {
     if (fm.fileExists(cache)) {
       const c = JSON.parse(fm.readString(cache));
-      return { r: c.r || c, viejo: true, t: c.t };
+      return Object.assign(c, { viejo: true });
     }
     return { error: String(e.message || e) };
   }
+}
+
+/** Colores de la cuenta (los calcula la hoja con el mismo método que la app). */
+function usarPaleta(p) {
+  if (!p) return;
+  C.hoja = p.hoja; C.pistache = p.pistache; C.azul = p.azul; C.coral = p.coral;
+  ESTADOS = {
+    bien: { fondo: p.widget_bien, acento: C.hoja, texto: 'Vas bien' },
+    bajo: { fondo: p.widget_bajo, acento: C.pistache, texto: 'Queda poco' },
+    negativo: { fondo: p.widget_negativo, acento: C.coral, texto: 'Te pasaste' },
+  };
+}
+
+/** "Libre para gastar", o con varias cuentas "DiDi · Libre"; en Nu (solo débito) "En Nu". */
+function titulo(largo) {
+  const nom = DATOS.cuenta ? DATOS.cuenta.nombre : '';
+  if (DATOS.r.tipo === 'debito') return 'En ' + (nom || 'débito');
+  if (DATOS.varias && nom) return nom + (largo ? ' · Libre para gastar' : ' · Libre');
+  return 'Libre para gastar';
 }
 
 function texto(stack, t, font, color, extra) {
@@ -145,13 +171,14 @@ function tarjeta(r) {
 /* ---------- pantalla de inicio ---------- */
 
 function chico(w, r, est) {
-  texto(w, 'Libre para gastar', Font.semiboldSystemFont(12), BLANCO(0.86), { minimumScaleFactor: 0.8 });
+  texto(w, titulo(false), Font.semiboldSystemFont(12), BLANCO(0.86), { minimumScaleFactor: 0.8 });
   w.addSpacer(3);
   monto(w, r.libre, 30, false);
   w.addSpacer(5);
   estado(w, est, 11);
   w.addSpacer();
   linea(w, false);
+  if (r.tipo === 'debito') { dato(w, 'cart.fill', col(C.pistache), 'Gastado este mes', sinCentavos(r.gastado_mes || 0)); return; }
   const t = tarjeta(r);
   dato(w, 'creditcard.fill', col(C.pistache), t.titulo + (t.nota ? ' · ' + t.nota : ''), t.valor, t.color);
 }
@@ -160,7 +187,7 @@ function mediano(w, r, est) {
   const fila = w.addStack();
   // Izquierda: Libre
   const izq = fila.addStack(); izq.layoutVertically();
-  texto(izq, 'Libre para gastar', Font.semiboldSystemFont(13), BLANCO(0.86));
+  texto(izq, titulo(true), Font.semiboldSystemFont(13), BLANCO(0.86), { minimumScaleFactor: 0.75 });
   izq.addSpacer(3);
   monto(izq, r.libre, 34, true);
   izq.addSpacer(7);
@@ -173,6 +200,13 @@ function mediano(w, r, est) {
   fila.addSpacer(12);
   // Derecha: tres datos en filas, separadas por líneas finas
   const der = fila.addStack(); der.layoutVertically(); der.size = new Size(128, 0);
+  if (r.tipo === 'debito') {
+    // Cuenta de solo débito (como Nu): sin tarjeta ni cashback; lo del mes.
+    dato(der, 'cart.fill', col(C.pistache), 'Gastado este mes', sinCentavos(r.gastado_mes || 0));
+    linea(der, false);
+    dato(der, 'arrow.down.circle.fill', col(C.hoja), 'Entró este mes', sinCentavos(r.recibido_mes || 0));
+    return;
+  }
   const t = tarjeta(r);
   dato(der, 'creditcard.fill', col(C.pistache), t.titulo, t.valor, t.color, t.nota);
   linea(der, false);
@@ -184,7 +218,12 @@ function mediano(w, r, est) {
 /* ---------- pantalla bloqueada ---------- */
 
 function bloqueoRect(w, r) {
-  texto(w, 'LIBRE', Font.semiboldSystemFont(11), BLANCO(0.75));
+  texto(w, titulo(false).toUpperCase(), Font.semiboldSystemFont(11), BLANCO(0.75));
+  if (r.tipo === 'debito') {
+    texto(w, sinCentavos(r.libre), Font.boldSystemFont(22), BLANCO(), { minimumScaleFactor: 0.6 });
+    texto(w, 'Gastado este mes ' + sinCentavos(r.gastado_mes || 0), Font.mediumSystemFont(12), BLANCO(0.85), { minimumScaleFactor: 0.7 });
+    return;
+  }
   texto(w, sinCentavos(r.libre), Font.boldSystemFont(22), BLANCO(), { minimumScaleFactor: 0.6 });
   const t = tarjeta(r);
   texto(w, r.por_pagar > 0 ? 'Tarjeta ' + t.valor + ' · ' + t.nota : 'En débito ' + sinCentavos(r.saldo_debito),
@@ -214,12 +253,14 @@ async function crear() {
     return w;
   }
   const r = datos.r;
-  const est = ESTADOS[r.estado_libre] || ESTADOS.bien;
+  usarPaleta(datos.paleta);
+  const est = Object.assign({}, ESTADOS[r.estado_libre] || ESTADOS.bien);
+  if (r.tipo === 'debito' && r.estado_libre === 'negativo') est.texto = 'Revisa';
 
-  if (fam === 'accessoryInline') { w.addText('Libre ' + sinCentavos(r.libre)); return w; }
+  if (fam === 'accessoryInline') { w.addText((r.tipo === 'debito' ? (datos.cuenta ? datos.cuenta.nombre : 'Saldo') : 'Libre') + ' ' + sinCentavos(r.libre)); return w; }
   if (fam === 'accessoryCircular') {
     w.addAccessoryWidgetBackground = true;
-    const t1 = w.addText('Libre'); t1.font = Font.semiboldSystemFont(10); t1.centerAlignText();
+    const t1 = w.addText(r.tipo === 'debito' && datos.cuenta ? datos.cuenta.nombre : 'Libre'); t1.font = Font.semiboldSystemFont(10); t1.centerAlignText();
     const t2 = w.addText(corto(r.libre)); t2.font = Font.boldSystemFont(15); t2.minimumScaleFactor = 0.5; t2.centerAlignText();
     return w;
   }

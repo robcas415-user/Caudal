@@ -16,6 +16,10 @@
   <link rel="icon" href="icon-192.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="stylesheet" href="styles.css">
+  <script>
+    /* Color de la cuenta elegida: se pone antes de pintar para que no se vea el verde un instante. */
+    try { var t = JSON.parse(localStorage.getItem('caudal_tema') || 'null'); if (t && t.css) { var st = document.createElement('style'); st.id = 'tema-css'; st.textContent = t.css; document.head.appendChild(st); document.querySelector('link[rel="stylesheet"]').disabled = true; } } catch (e) {}
+  </script>
 </head>
 <body>
   <div class="fondo" aria-hidden="true"></div>
@@ -59,6 +63,7 @@
     <main class="contenido">
       <!-- INICIO -->
       <section class="vista" id="vista-inicio" data-titulo="saludo">
+        <div class="cuentas-sel" id="cuentas-sel" hidden></div>
         <article class="heroe" id="heroe">
           <div class="heroe-brillo" aria-hidden="true"></div>
           <div class="heroe-top">
@@ -120,17 +125,18 @@
 
       <!-- AJUSTES -->
       <section class="vista" id="vista-ajustes" data-titulo="Ajustes" hidden>
+        <div class="cuentas-sel" id="cuentas-sel-cfg" hidden></div>
         <form id="form-config" novalidate></form>
 
-        <section class="grupo">
+        <section class="grupo" id="grupo-calculo">
           <h2 class="grupo-etq">Cómo se calcula el Libre</h2>
           <div class="lista-ios cuenta-libre" aria-label="Libre es lo que tienes en débito menos lo que debe la tarjeta">
-            <div class="fila"><span class="fila-txt">Tienes en DiDi débito</span><span class="fila-valor num" id="fx-debito">—</span></div>
+            <div class="fila"><span class="fila-txt" id="fx-debito-txt">Tienes en DiDi débito</span><span class="fila-valor num" id="fx-debito">—</span></div>
             <div class="fila"><span class="fila-txt">Debe la tarjeta</span><span class="fila-valor num" id="fx-deuda">—</span></div>
             <div class="fila fila-total"><span class="fila-txt"><b>Libre para gastar</b></span><span class="fila-valor num" id="fx-libre">—</span></div>
           </div>
           <p class="grupo-pie">Lo que compras con la tarjeta se resta del Libre desde ese momento, aunque la pagues después. Por eso pagar la tarjeta no cambia el Libre: solo pasa dinero del débito a la tarjeta.</p>
-          <p class="grupo-pie">Si algo no coincide con la app de DiDi, usa Cuadrar en Inicio.</p>
+          <p class="grupo-pie" id="fx-pie-didi">Si algo no coincide con la app de DiDi, usa Cuadrar en Inicio.</p>
         </section>
 
         <section class="grupo">
