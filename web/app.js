@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var LS = { api: 'caudal_api', clave: 'caudal_clave', estado: 'caudal_estado', demo: 'caudal_demo', demoDatos: 'caudal_demo_datos', cuenta: 'caudal_cuenta', tema: 'caudal_tema' };
+  var LS = { api: 'caudal_api', clave: 'caudal_clave', estado: 'caudal_estado', demo: 'caudal_demo', demoDatos: 'caudal_demo_datos', cuenta: 'caudal_cuenta', tema: 'caudal_tema', temas: 'caudal_temas' };
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var $$ = function (s, el) { return Array.prototype.slice.call((el || document).querySelectorAll(s)); };
 
@@ -312,7 +312,8 @@
    */
   var cssOriginal = null, temaPuesto = null;
   function textoCss() {
-    if (!cssOriginal) cssOriginal = fetch('styles.css').then(function (r) { if (!r.ok) throw new Error(); return r.text(); });
+    // Si falla (sin señal) no se queda guardado el fallo: la próxima vez vuelve a intentar.
+    if (!cssOriginal) cssOriginal = fetch('styles.css').then(function (r) { if (!r.ok) throw new Error(); return r.text(); }).catch(function (e) { cssOriginal = null; throw e; });
     return cssOriginal;
   }
   function cssConTema(txt, tema) {
@@ -338,11 +339,32 @@
     var m = $('meta[name="theme-color"]');
     if (m) m.setAttribute('content', cdHexTema('#070b0a', tema));
   }
-  /** Pinta toda la app con el color de una cuenta. animar: transición suave (si el teléfono la tiene). */
-  function aplicarTema(color, animar, despues) {
-    var tema = cdTema(color), clave = tema.color;
+  /**
+   * Pinta toda la app con el color de una cuenta. animar: transición suave (si el teléfono la tiene).
+   * prueba: es un color que solo se está probando en Ajustes; no se recuerda para el próximo arranque
+   * (si no, al volver a abrir la app se vería un instante el color de prueba, o el verde).
+   * Si llegan dos órdenes seguidas, solo vale la última: una vieja que tarde más no pisa a la nueva.
+   */
+  var temaOrden = 0;
+  /** Los colores ya armados se guardan por color: al abrir la app se pintan al instante, sin red (ver index.html). */
+  function claveTema(color) { return String(color || '').toLowerCase(); }
+  function temaRecordado(color) {
+    try { var m = JSON.parse(leer(LS.temas) || '{}'); return m[claveTema(color)] || null; } catch (e) { return null; }
+  }
+  function recordarTema(color, css) {
+    try {
+      var m = JSON.parse(leer(LS.temas) || '{}'), k = claveTema(color);
+      if (m[k] === css) return;
+      delete m[k]; m[k] = css;                                  // el más reciente queda al final
+      var ks = Object.keys(m); while (ks.length > 4) delete m[ks.shift()];
+      guardar(LS.temas, JSON.stringify(m));
+    } catch (e) {}
+  }
+  function aplicarTema(color, animar, despues, prueba) {
+    var tema = cdTema(color), clave = tema.color, orden = ++temaOrden;
     var link = $('link[rel="stylesheet"]');
     var cambiar = function (css) {
+      if (orden !== temaOrden) { if (despues) despues(); return; }
       var st = $('#tema-css');
       if (tema.base) { if (st) st.remove(); link.disabled = false; }
       else {
@@ -358,10 +380,18 @@
       if (animar && document.startViewTransition && !sinMovimiento() && temaPuesto !== clave) document.startViewTransition(function () { cambiar(css); });
       else cambiar(css);
     };
-    if (tema.base) { guardar(LS.tema, null); hacer(''); return; }
+    if (tema.base) { if (!prueba) guardar(LS.tema, null); recordarTema(color, ''); hacer(''); return; }
+    // Si ya se armó antes este color, se usa al instante (sin esperar la red); abajo se rehace con la hoja de estilos al día.
+    var previo = temaRecordado(color);
+    if (previo) hacer(previo);
     textoCss().then(function (txt) {
       var css = cssConTema(txt, tema);
-      guardar(LS.tema, JSON.stringify({ color: clave, css: css }));
+      recordarTema(color, css);
+      if (!prueba) guardar(LS.tema, JSON.stringify({ color: clave, css: css }));
+      if (previo === css) { if (despues) despues(); return; }
+      if (orden !== temaOrden) { if (despues) despues(); return; }
+      var st = $('#tema-css');
+      if (previo && st) { st.textContent = css; if (despues) despues(); return; }   // solo se afinó: sin transición
       hacer(css);
     }).catch(function () { if (despues) despues(); });
   }
@@ -415,7 +445,7 @@
     var vacio = !estado.movimientos.length;
     // La app toma el color de la cuenta (o el que se está probando en Ajustes).
     var colorVer = previaColor || estado.cuenta.color;
-    if (cdTema(colorVer).color !== temaPuesto) aplicarTema(colorVer, false);
+    if (cdTema(colorVer).color !== temaPuesto) aplicarTema(colorVer, false, null, !!previaColor);
 
     // Con varias cuentas, arriba se ve siempre en cuál estás (con su color).
     $('#fecha-hoy').innerHTML = varias() ? punto(estado.cuenta) + '<span class="cuenta-nombre">' + esc(nom()) + '</span> · ' + esc(fecha(r.hoy)) : esc(fecha(r.hoy));
@@ -1226,7 +1256,7 @@
       if (!enLista) ruedaBtn.style.setProperty('--c', col);
       if (!desdeRueda) rueda.value = col;
       previaColor = col === cdColorValido(estado.cuenta.color) ? null : col;
-      aplicarTema(col, true);
+      aplicarTema(col, true, null, !!previaColor);
       pintarPrevia(col);
       oculto.dispatchEvent(new Event('change', { bubbles: true }));
     };
@@ -1909,6 +1939,7 @@
   }
 
   function arrancar() {
+    textoCss().catch(function () {});   // ya se va bajando la hoja de estilos para cuando haga falta cambiar de color
     // ¿Viene un enlace en la dirección?
     var datos = leerEnlace(location.href);
     if (datos && aplicarEnlace(datos)) history.replaceState(null, '', location.pathname);
