@@ -1573,18 +1573,10 @@
     nota.textContent = txt;
   }
 
-  /** La cuenta donde se va a anotar (la activa, o la que se eligió arriba de la hoja). */
+  /** La cuenta donde se va a anotar: siempre la activa (la que se eligió en Inicio al abrir la hoja). */
   function cuentaDelForm() {
-    var id = valorDe('cuenta') || (formActual && formActual.cuenta) || (estado && estado.cuenta.id);
+    var id = (formActual && formActual.cuenta) || (estado && estado.cuenta.id);
     return estado.cuentas.filter(function (c) { return c.id === id; })[0] || estado.cuenta;
-  }
-
-  /** Arriba de "Compra" y "Recibí dinero": en qué cuenta (empieza en la activa). */
-  function selectorCuentaForm() {
-    var seg = segmentado('f-cuenta', estado.cuentas.map(function (c) { return { v: c.id, t: c.nombre, punto: colorPunto(c) }; }), estado.cuenta.id, function () { actualizarNota(); });
-    seg.classList.add('seg-cuentas');
-    seg.setAttribute('aria-label', 'Cuenta');
-    return h('div', { class: 'hoja-seccion' }, [seg]);
   }
 
   function abrirForm(tipo, mov, pre) {
@@ -1600,7 +1592,6 @@
     borrarArmado = false;
     var cfg = estado.config, r = estado.resumen, titulo, monto = '';
 
-    if ((tipo === 'compra' || tipo === 'deposito') && varias()) cuerpo.appendChild(selectorCuentaForm());
     if (tipo === 'compra') {
       titulo = mov ? 'Editar compra' : 'Compra';
       cuerpo.appendChild(h('div', { class: 'hoja-seccion', id: 'f-medio-caja', hidden: deb }, [segmentado('f-medio', [{ v: 'credito', t: 'Tarjeta de crédito' }, { v: 'debito', t: 'Débito' }], mov ? mov.medio : 'credito', actualizarNota)]));
@@ -1686,6 +1677,10 @@
 
     teclado.txt = montoATexto(monto);
     $('#hoja-titulo').textContent = titulo;
+    // Con varias cuentas, la hoja dice en cuál se anota (la activa); para cambiarla, se cambia en Inicio.
+    var sub = $('#hoja-sub');
+    sub.hidden = !varias();
+    if (varias()) sub.innerHTML = punto(estado.cuenta) + '<span>' + esc(estado.cuenta.nombre) + '</span>';
     var g = $('#hoja-guardar'); g.disabled = false; g.textContent = mov ? 'Guardar cambios' : 'Guardar';
     pintarMonto();
     abrirHoja();
