@@ -2,7 +2,7 @@
 
 **Para quién:** una mamá con iPhone que no es experta en tecnología. Anota sus gastos a mano, rápido, y quiere saber de un vistazo cuánto puede gastar.
 
-**Qué resuelve:** usa la tarjeta de crédito DiDi (6% de cashback en Súper) y guarda su dinero en DiDi débito. Caudal le dice cuánto tiene **Libre**: lo que hay en débito menos lo que debe la tarjeta.
+**Qué resuelve:** usa la tarjeta de crédito DiDi (cashback en Súper, hoy 2%; se configura en Ajustes) y guarda su dinero en DiDi débito. Caudal le dice cuánto tiene **Libre**: lo que hay en débito menos lo que debe la tarjeta.
 
 **Principios**
 - Fácil no significa simple: las cuentas deben cuadrar siempre. El libro de "Este mes" termina exactamente en el Libre.

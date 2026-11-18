@@ -1,7 +1,7 @@
 # Caudal
 
 Control sencillo del dinero de la casa con la tarjeta DiDi:
-se paga el súper con **DiDi crédito** (6% de cashback) y se usa el dinero recibido,
+se paga el súper con **DiDi crédito** (con cashback; en Súper hoy 2%, se configura en Ajustes) y se usa el dinero recibido,
 depositado en **DiDi débito**, para pagar la tarjeta.
 
 La cifra principal, siempre a la vista:
