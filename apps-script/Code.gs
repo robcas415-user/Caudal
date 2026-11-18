@@ -74,27 +74,49 @@ function instalar() {
 }
 
 /**
- * Agrega a Cuentas las columnas que le falten (hojas que ya tenían la pestaña de una versión anterior).
- * aviso_libre_bajo: la primera cuenta (DiDi) conserva el aviso que ya tenía en Config; las demás
- * quedan vacías (no avisar) hasta que se ponga uno en Ajustes.
+ * Deja la pestaña Cuentas con las columnas de CAUDAL_CUENTA_CAMPOS en su orden (sin perder datos:
+ * se mueven por nombre y lo desconocido queda al final), y llena lo que falte de versiones anteriores:
+ *   aviso_libre_bajo: la primera cuenta (DiDi) conserva el aviso que tenía en Config (si la columna es nueva).
+ *   tiene_cashback:   'si' si la cuenta es de crédito y su % es mayor a 0 (la primera usa Config si su celda
+ *                     está vacía); 'no' en cualquier otro caso.
+ * Si ya está todo, no escribe nada.
  */
 function completarColumnasCuentas_() {
   var h = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOJA_CTA);
   if (!h || h.getLastRow() < 1) return;
-  var enc = h.getRange(1, 1, 1, Math.max(h.getLastColumn(), 1)).getValues()[0].map(function (x) { return String(x).trim(); });
-  var faltan = CAUDAL_CUENTA_CAMPOS.filter(function (k) { return enc.indexOf(k) < 0; });
-  if (!faltan.length) return;
+  var ncol = Math.max(h.getLastColumn(), 1);
+  var enc = h.getRange(1, 1, 1, ncol).getValues()[0].map(function (x) { return String(x).trim(); });
+  var extras = enc.filter(function (k) { return k && CAUDAL_CUENTA_CAMPOS.indexOf(k) < 0; });
+  var dest = CAUDAL_CUENTA_CAMPOS.concat(extras);
+  var colId = enc.indexOf('id') + 1;
+  if (!colId) return;
+  var n = 0;
+  var ids = h.getLastRow() >= 2 ? h.getRange(2, colId, h.getLastRow() - 1, 1).getValues() : [];
+  while (n < ids.length && String(ids[n][0]).trim() !== '' && String(ids[n][0]).indexOf(' ') < 0) n++;
+  var filas = n > 0 ? h.getRange(2, 1, n, ncol).getValues() : [];
+  var cfg = leerConfigCruda_();
+  var avisoNuevo = enc.indexOf('aviso_libre_bajo') < 0;
+  var cambio = enc.join('|') !== dest.join('|');
+  var nuevas = filas.map(function (f, i) {
+    var o = {};
+    enc.forEach(function (k, j) { if (k) o[k] = f[j]; });
+    var pct = o.cashback_pct !== '' && o.cashback_pct != null ? Number(o.cashback_pct) : (i === 0 ? Number(cfg.cashback_pct) : 0);
+    var lleva = String(o.tipo).trim().toLowerCase() !== 'debito' && pct > 0;
+    if (cdSiNo(o.tiene_cashback) === '' ) { o.tiene_cashback = lleva ? 'si' : 'no'; cambio = true; }
+    if (avisoNuevo && i === 0 && cfg.aviso_libre_bajo !== undefined && cfg.aviso_libre_bajo !== '') { o.aviso_libre_bajo = String(cfg.aviso_libre_bajo); cambio = true; }
+    return dest.map(function (k) { return o[k] === undefined || o[k] === null ? '' : String(o[k]); });
+  });
+  if (!cambio) return;
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
-    var col = enc.filter(String).length;       // justo después de la última columna con título
-    var cfg = leerConfigCruda_();
-    faltan.forEach(function (k) {
-      col++;
-      h.getRange(1, col).setValue(k).setFontWeight('bold');
-      h.getRange(2, col, Math.max(1, h.getMaxRows() - 1), 1).setNumberFormat('@');
-      if (k === 'aviso_libre_bajo' && h.getLastRow() >= 2 && cfg.aviso_libre_bajo !== undefined && cfg.aviso_libre_bajo !== '') h.getRange(2, col).setValue(String(cfg.aviso_libre_bajo));
-    });
+    if (h.getMaxColumns() < dest.length) h.insertColumnsAfter(h.getMaxColumns(), dest.length - h.getMaxColumns());
+    h.getRange(1, 1, 1, dest.length).setNumberFormat('@');
+    h.getRange(1, 1, 1, dest.length).setValues([dest]).setFontWeight('bold');
+    if (nuevas.length) {
+      h.getRange(2, 1, nuevas.length, dest.length).setNumberFormat('@');
+      h.getRange(2, 1, nuevas.length, dest.length).setValues(nuevas);
+    }
   } finally {
     lock.releaseLock();
   }
@@ -132,15 +154,15 @@ function asegurarCuentas_() {
     var tarjeta = function (k) { return cfg[k] === undefined || cfg[k] === null ? '' : cfg[k]; };
     var filas = [
       CAUDAL_CUENTA_CAMPOS,
-      ['didi', 'DiDi', 'credito', CD_COLOR_BASE, tarjeta('dia_corte'), tarjeta('dia_limite'), tarjeta('cashback_pct'), tarjeta('categorias_cashback'), tarjeta('cashback_tope'), tarjeta('aviso_libre_bajo')],
-      ['nu', 'Nu', 'debito', '#820ad1', '', '', '', '', '', '']
+      ['didi', 'DiDi', 'credito', CD_COLOR_BASE, tarjeta('dia_corte'), tarjeta('dia_limite'), Number(tarjeta('cashback_pct')) > 0 ? 'si' : 'no', tarjeta('cashback_pct'), tarjeta('categorias_cashback'), tarjeta('cashback_tope'), tarjeta('aviso_libre_bajo')],
+      ['nu', 'Nu', 'debito', '#820ad1', '', '', 'no', '', '', '', '']
     ];
     var h = ss.insertSheet(HOJA_CTA);
     h.getRange(1, 1, filas.length, CAUDAL_CUENTA_CAMPOS.length).setNumberFormat('@');
     h.getRange(1, 1, filas.length, CAUDAL_CUENTA_CAMPOS.length).setValues(filas.map(function (f) { return f.map(String); }));
     h.getRange(1, 1, 1, CAUDAL_CUENTA_CAMPOS.length).setFontWeight('bold');
     h.setFrozenRows(1);
-    h.getRange(filas.length + 2, 1).setValue('tipo: credito (tarjeta + débito, como DiDi) o debito (solo débito, como Nu). color: color de marca (#RRGGBB). Lo de la tarjeta solo aplica a crédito.');
+    h.getRange(filas.length + 2, 1).setValue('tipo: credito (tarjeta + débito, como DiDi) o debito (solo débito, como Nu). color: color de marca (#RRGGBB). Corte, límite y cashback solo aplican a crédito. tiene_cashback: si / no.');
   } finally {
     lock.releaseLock();
   }
@@ -487,66 +509,89 @@ function guardarConfig_(valores, cuentaId, valoresCuenta) {
   var permitidas = CAUDAL_CONFIG.map(function (c) { return c[0]; });
   var generales = {};
   Object.keys(valores || {}).forEach(function (k) { if (CAUDAL_CAMPOS_TARJETA.indexOf(k) < 0) generales[k] = valores[k]; });
-  escribirConfig_(generales, permitidas);
   var cuentas = leerCuentas_();
   if (!cuentaId) {
     // Versión anterior de la app (sin cuentas): lo de la tarjeta es de la primera cuenta.
     cuentaId = cuentas[0].id;
     valoresCuenta = {};
     CAUDAL_CAMPOS_TARJETA.forEach(function (k) { if (k in (valores || {})) valoresCuenta[k] = valores[k]; });
+    // La app vieja apaga el cashback con un 0%; sin marca nueva, eso es "no lleva cashback".
+    if ('cashback_pct' in valoresCuenta && !(Number(valoresCuenta.cashback_pct) > 0)) valoresCuenta.tiene_cashback = 'no';
+    else if ('cashback_pct' in valoresCuenta) valoresCuenta.tiene_cashback = 'si';
   }
-  if (cuentaId && valoresCuenta) {
-    if (cuentas[0] && cuentas[0].id === String(cuentaId)) {
+  // Primero se revisa todo (si algo está mal, no se escribe nada).
+  var prep = cuentaId && valoresCuenta ? prepararCuenta_(Object.assign({}, valoresCuenta, { id: cuentaId })) : null;
+  escribirConfig_(generales, permitidas);
+  if (prep) {
+    aplicarCuenta_(prep);
+    // La primera cuenta también deja lo suyo en Config (así lo de antes y el widget viejo siguen igual).
+    if (cuentas[0] && cuentas[0].id === prep.id && prep.limpio.tipo === 'credito') {
       var tarjeta = {};
-      CAUDAL_CAMPOS_TARJETA.forEach(function (k) { if (k in valoresCuenta) tarjeta[k] = valoresCuenta[k]; });
+      ['dia_corte', 'dia_limite', 'cashback_pct', 'categorias_cashback', 'cashback_tope', 'aviso_libre_bajo'].forEach(function (k) { if (k in prep.limpio) tarjeta[k] = prep.limpio[k] !== '' && !isNaN(Number(prep.limpio[k])) ? Number(prep.limpio[k]) : prep.limpio[k]; });
+      if (prep.limpio.tiene_cashback === 'no') { delete tarjeta.cashback_pct; delete tarjeta.categorias_cashback; }
       escribirConfig_(tarjeta, permitidas);
     }
-    var d = {};
-    Object.keys(valoresCuenta).forEach(function (k) { d[k] = valoresCuenta[k]; });
-    d.id = cuentaId;
-    escribirCuenta_(d);
   }
   return estadoCompleto_();
 }
 
-/** Crea o cambia una cuenta (fila de Cuentas). Sin id, crea una nueva. */
-function escribirCuenta_(d) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var h = ss.getSheetByName(HOJA_CTA);
+/**
+ * Revisa lo que se quiere guardar de una cuenta (sin escribir): la mezcla con lo que ya tiene, la deja
+ * consistente según su tipo (cdValidarCuenta) y dice en qué fila va. Sin id existente = cuenta nueva.
+ */
+function prepararCuenta_(d) {
+  var h = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOJA_CTA);
+  var cuentas = leerCuentas_();
+  var id = String(d.id || '').trim();
+  var ex = id ? cuentas.filter(function (c) { return c.id === id; })[0] : null;
+  var esPrimera = !!ex && cuentas[0].id === ex.id;
+  var cfg = leerConfigCruda_();
+  var m = {};
+  if (ex) Object.keys(ex).forEach(function (k) { m[k] = ex[k]; });
+  else { m.tipo = 'debito'; m.color = CD_COLOR_BASE; m.nombre = ''; }
+  if ('nombre' in d) m.nombre = String(d.nombre || '').trim().slice(0, 30);
+  if ('tipo' in d) m.tipo = d.tipo === 'debito' ? 'debito' : 'credito';
+  if ('color' in d) { var c = cdColorValido(d.color); if (c) m.color = c; }
+  CAUDAL_CAMPOS_TARJETA.forEach(function (k) {
+    if (k in d) m[k] = d[k] === null || d[k] === undefined ? '' : String(d[k]);
+    else if (esPrimera && (m[k] === '' || m[k] == null) && k !== 'tiene_cashback' && cfg[k] !== undefined) m[k] = cfg[k];   // lo de antes, en Config
+  });
+  if (!m.nombre) throw new Error('La cuenta necesita un nombre');
+  var limpio = cdValidarCuenta(m, esPrimera ? cfg : null);
+  limpio.nombre = m.nombre; limpio.color = m.color;
+  return { id: ex ? ex.id : '', limpio: limpio, nueva: !ex, hoja: h };
+}
+
+/** Escribe en Cuentas lo que preparó prepararCuenta_. Devuelve el id de la cuenta. */
+function aplicarCuenta_(prep) {
+  var h = prep.hoja, limpio = prep.limpio;
   var enc = h.getRange(1, 1, 1, Math.max(h.getLastColumn(), CAUDAL_CUENTA_CAMPOS.length)).getValues()[0].map(function (x) { return String(x).trim(); });
   CAUDAL_CUENTA_CAMPOS.forEach(function (k) {
     if (enc.indexOf(k) < 0) { var col = enc.indexOf('') >= 0 ? enc.indexOf('') : enc.length; enc[col] = k; h.getRange(1, col + 1).setValue(k).setFontWeight('bold'); }
   });
-  var limpio = {};
-  if ('nombre' in d) limpio.nombre = String(d.nombre || '').trim().slice(0, 30);
-  if ('tipo' in d) limpio.tipo = d.tipo === 'debito' ? 'debito' : 'credito';
-  if ('color' in d) { var c = cdColorValido(d.color); if (c) limpio.color = c; }
-  CAUDAL_CAMPOS_TARJETA.forEach(function (k) { if (k in d) limpio[k] = d[k] === null || d[k] === undefined ? '' : String(d[k]); });
-  if ('nombre' in limpio && !limpio.nombre) throw new Error('La cuenta necesita un nombre');
-
-  var fila = -1, id = String(d.id || '').trim();
+  var fila = -1, id = prep.id;
   if (id && h.getLastRow() >= 2) {
     var ids = h.getRange(2, enc.indexOf('id') + 1, h.getLastRow() - 1, 1).getValues();
     for (var i = 0; i < ids.length; i++) if (String(ids[i][0]).trim() === id) { fila = i + 2; break; }
   }
   if (fila < 0) {
-    if (!limpio.nombre) throw new Error('La cuenta necesita un nombre');
-    if (!id || cdBuscarCuenta(leerCuentas_(), id)) id = 'c' + Utilities.getUuid().slice(0, 6);
+    id = 'c' + Utilities.getUuid().slice(0, 6);
+    while (cdBuscarCuenta(leerCuentas_(), id)) id = 'c' + Utilities.getUuid().slice(0, 6);
     // Se escribe justo después de la última cuenta (la nota de abajo, si existe, se recorre).
-    var cuentas = leerCuentas_();
-    fila = cuentas.length + 2;
+    fila = leerCuentas_().length + 2;
     if (h.getLastRow() >= fila) h.insertRowBefore(fila);
     limpio.id = id;
-    if (!limpio.tipo) limpio.tipo = 'debito';
-    if (!limpio.color) limpio.color = CD_COLOR_BASE;
   }
   h.getRange(fila, 1, 1, enc.length).setNumberFormat('@');
   Object.keys(limpio).forEach(function (k) {
     var col = enc.indexOf(k);
-    if (col >= 0) h.getRange(fila, col + 1).setValue(limpio[k]);
+    if (col >= 0) h.getRange(fila, col + 1).setValue(String(limpio[k]));
   });
   return id;
 }
+
+/** Crea o cambia una cuenta (fila de Cuentas). Sin id, crea una nueva. */
+function escribirCuenta_(d) { return aplicarCuenta_(prepararCuenta_(d)); }
 
 function guardarCuenta_(d) {
   var lock = LockService.getScriptLock();

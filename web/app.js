@@ -175,8 +175,15 @@
         Object.keys(vals).forEach(function (k) { if (CAUDAL_CAMPOS_TARJETA.indexOf(k) < 0) d.config[k] = vals[k]; });
         var i = d.cuentas.findIndex(function (c) { return c.id === datos.cuenta; });
         if (i >= 0) {
-          Object.assign(d.cuentas[i], vc);
-          if (i === 0) CAUDAL_CAMPOS_TARJETA.forEach(function (k) { if (k in vc) d.config[k] = vc[k]; });
+          // Lo mismo que hace la hoja: mezcla, deja la cuenta consistente según su tipo y avisa si falta algo.
+          var m = Object.assign({}, cdCuentasNormalizar(d.cuentas)[i], vc);
+          if (i === 0) CAUDAL_CAMPOS_TARJETA.forEach(function (k) { if (!(k in vc) && k !== 'tiene_cashback' && (m[k] === '' || m[k] == null) && d.config[k] != null) m[k] = d.config[k]; });
+          var ok = cdValidarCuenta(m, i === 0 ? d.config : null);
+          Object.assign(d.cuentas[i], ok);
+          if (i === 0 && ok.tipo === 'credito') CAUDAL_CAMPOS_TARJETA.forEach(function (k) {
+            if (k === 'tiene_cashback' || (ok.tiene_cashback === 'no' && (k === 'cashback_pct' || k === 'categorias_cashback'))) return;
+            if (k in ok) d.config[k] = ok[k] !== '' && !isNaN(Number(ok[k])) ? Number(ok[k]) : ok[k];
+          });
         }
         this.guardarDatos(d);
       }
@@ -1112,11 +1119,11 @@
       var p = k >= 0 && x.slice(k + 1).trim() !== '' ? Number(x.slice(k + 1)) : (base || Number(leer('caudal.cbPct')) || 6);
       if (nom && p > 0) pcts[nom.toLowerCase()] = p;
     });
-    var activo = base > 0;
+    var activo = cfg.tiene_cashback === 'si';
     var inPct = h('input', { type: 'hidden', id: 'cfg-cashback_pct', value: String(base || 0) });
     var inCats = h('input', { type: 'hidden', id: 'cfg-categorias_cashback', value: cfg.categorias_cashback || '' });
     var sw = h('label', { class: 'fila campo-fila cb-switch', html:
-      '<span class="cb-switch-txt"><b>Llevar el cashback</b><small></small></span>' +
+      '<span class="cb-switch-txt"><b>Esta tarjeta tiene cashback o puntos</b><small></small></span>' +
       '<span class="switch"><input type="checkbox" id="cfg-cb-on"' + (activo ? ' checked' : '') + '><i></i></span>' });
     var pie = sw.querySelector('small');
     sw.appendChild(inPct); sw.appendChild(inCats);
@@ -1130,8 +1137,8 @@
       cats.forEach(function (c) { var p = pcts[c.toLowerCase()] || 0; if (p > 0) { partes.push([c, p]); max = Math.max(max, p); } });
       // Las que llevan el % mayor van sin número (ese % se guarda en cashback_pct); así la hoja se lee sencilla.
       inCats.value = partes.map(function (x) { return x[1] === max ? x[0] : x[0] + ':' + x[1]; }).join(', ');
-      inPct.value = activo && max > 0 ? String(max) : '0';
-      pie.textContent = !activo ? 'Apagado, no aparece en ningún lado de la app.'
+      inPct.value = max > 0 ? String(max) : '0';   // se conserva aunque esté apagado; el interruptor decide si cuenta
+      pie.textContent = !activo ? 'Apagado: no aparece en ningún lado de la app. Lo que configures aquí se conserva.'
         : partes.length ? partes.length + (partes.length === 1 ? ' categoría regresa dinero.' : ' categorías regresan dinero.') : 'Sube el porcentaje de alguna categoría.';
     };
     var avisar = function () { inCats.dispatchEvent(new Event('change', { bubbles: true })); };
@@ -1282,7 +1289,11 @@
     f.innerHTML = '';
     var campos = estado.campos || CAUDAL_CONFIG, porClave = {};
     campos.forEach(function (c) { porClave[c[0]] = c; });
-    var cfg = estado.config;
+    var cfg = Object.assign({}, estado.config);
+    if (estado.config.cashback_guardado && cfg.tiene_cashback !== 'si') {   // apagado: se muestra lo que se conserva
+      cfg.cashback_pct = estado.config.cashback_guardado.pct;
+      cfg.categorias_cashback = estado.config.cashback_guardado.categorias;
+    }
     var opcionesCat = function (lista, conCb) {
       return lista.map(function (c) { return { v: c, t: c }; });
     };
@@ -1300,7 +1311,7 @@
 
     var cbEditor = null;
     f.appendChild(seccionCuenta());
-    var SOLO_CREDITO = { 'Tarjeta de crédito': 1, 'Cashback': 1 };
+    var SOLO_CREDITO = { 'Tarjeta de crédito': 1, 'Cashback': 1 };   // se muestran solo si la cuenta es de crédito
     SECCIONES_CFG.forEach(function (s) {
       var claves = s.c.filter(function (k) { return porClave[k] && !CFG_OCULTOS[k]; });
       if (!claves.length) return;
@@ -1363,11 +1374,20 @@
     vc.nombre = $('#cta-nombre').value.trim();
     vc.tipo = $('#cta-tipo').value === 'debito' ? 'debito' : 'credito';
     vc.color = $('#cta-color').value;
+    var cbOn = $('#cfg-cb-on');
+    vc.tiene_cashback = vc.tipo === 'credito' && cbOn && cbOn.checked ? 'si' : 'no';
     if (!vc.nombre) { avisar('Escribe el nombre de la cuenta', 3500, 'error'); return; }
     if (estado.cuentas.some(function (c) { return c.id !== estado.cuenta.id && c.nombre.toLowerCase() === vc.nombre.toLowerCase(); })) { avisar('Ya hay una cuenta con ese nombre', 3500, 'error'); return; }
-    var dc = Number(vc.dia_corte), dl = Number(vc.dia_limite);
-    if (vc.tipo === 'credito' && 'dia_corte' in vc && !(dc >= 1 && dc <= 31)) { avisar('El día de corte debe ser entre 1 y 31', 3500, 'error'); return; }
-    if (vc.tipo === 'credito' && vc.dia_limite !== '' && vc.dia_limite != null && !(dl >= 1 && dl <= 31)) { avisar('El día límite debe ser entre 1 y 31', 3500, 'error'); return; }
+    if (vc.tipo === 'credito') {
+      // Solo una cuenta con tarjeta necesita corte y límite; el cashback es opcional.
+      var dc = Number(vc.dia_corte), dl = Number(vc.dia_limite);
+      var falla = function (txt, campo) { avisar(txt, 4000, 'error'); var el = $('#cfg-' + campo); if (el) { el.scrollIntoView({ block: 'center' }); el.focus(); } };
+      if (!(dc >= 1 && dc <= 31)) { falla('Pon el día de corte de la tarjeta (de 1 a 31)', 'dia_corte'); return; }
+      if (vc.dia_limite !== '' && vc.dia_limite != null && !(dl >= 1 && dl <= 31)) { falla('El día límite de pago debe ser de 1 a 31', 'dia_limite'); return; }
+      if (vc.tiene_cashback === 'si' && !(Number(vc.cashback_pct) > 0)) { avisar('Sube el porcentaje de alguna categoría o apaga el cashback', 4000, 'error'); return; }
+    } else {
+      ['dia_corte', 'dia_limite', 'cashback_pct', 'categorias_cashback', 'cashback_tope'].forEach(function (k) { vc[k] = ''; });
+    }
     var btn = $('#btn-guardar-cfg');
     btn.disabled = true; btn.textContent = 'Guardando…';
     try {
