@@ -2,14 +2,15 @@
 (function () {
   'use strict';
 
-  var LS = { api: 'caudal_api', clave: 'caudal_clave', estado: 'caudal_estado', demo: 'caudal_demo', demoDatos: 'caudal_demo_datos' };
+  var LS = { api: 'caudal_api', clave: 'caudal_clave', estado: 'caudal_estado', demo: 'caudal_demo', demoDatos: 'caudal_demo_datos', cuenta: 'caudal_cuenta', tema: 'caudal_tema' };
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var $$ = function (s, el) { return Array.prototype.slice.call((el || document).querySelectorAll(s)); };
 
   function leer(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function guardar(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
 
-  var estado = null;          // respuesta de accion=estado
+  var crudo = null;           // respuesta de accion=estado (todas las cuentas)
+  var estado = null;          // lo de la cuenta activa: resumen, config, movimientos, cuenta, cuentas
   var filtro = 'todos', mesMov = null, animarLista = false;
   var cargando = false;
 
@@ -84,6 +85,7 @@
       };
       var d = {
         config: { nombre: 'Mamá', dia_corte: Number(cdPartes(f(-9)).d), dia_limite: Number(cdPartes(f(11)).d), cashback_pct: 6, monto_periodo: '', periodo_dias: '', avisos_correo: '', url_app: '' },
+        cuentas: Demo.cuentasIniciales(),
         movs: [
           m(f(-18), 'ajuste', 300, { descripcion: 'Saldo al empezar', medio: 'debito' }),
           m(f(-11), 'deposito', 2800, { descripcion: 'Dinero de la semana' }),
@@ -95,27 +97,60 @@
           m(f(-3), 'compra', 180, { categoria: 'Mercado', descripcion: 'Mercado', medio: 'debito' }),
           m(f(-1), 'compra', 435.9, { categoria: 'Súper', descripcion: 'Bodega Aurrera', cashback: 'si' }),
           m(f(0), 'compra', 129, { categoria: 'Farmacia', descripcion: 'Farmacia', cashback: 'no' })
-        ]
+        ].concat(Demo.movsNu(f, m))
       };
       this.guardarDatos(d);
       return d;
     },
+    cuentasIniciales: function () {
+      return [{ id: 'didi', nombre: 'DiDi', tipo: 'credito', color: CD_COLOR_BASE }, { id: 'nu', nombre: 'Nu', tipo: 'debito', color: '#820ad1' }];
+    },
+    movsNu: function (f, m) {
+      var nu = function (fecha, tipo, monto, extra) { return m(fecha, tipo, monto, Object.assign({ cuenta: 'nu', medio: 'debito' }, extra || {})); };
+      return [
+        nu(f(-16), 'ajuste', 1200, { descripcion: 'Saldo al empezar' }),
+        nu(f(-6), 'deposito', 1500, { descripcion: 'Ahorro' }),
+        nu(f(-5), 'compra', 349, { categoria: 'Casa', descripcion: 'Liverpool' }),
+        nu(f(-2), 'compra', 186.5, { categoria: 'Comida', descripcion: 'Comida' }),
+        nu(f(0), 'compra', 92, { categoria: 'Farmacia', descripcion: 'Farmacia' })
+      ];
+    },
     guardarDatos: function (d) { guardar(LS.demoDatos, JSON.stringify(d)); },
+    /** Lo mismo que calcula la hoja: cada cuenta con su resumen y su config. */
     estado: function (d) {
-      var r = calcularCaudal(d.movs, d.config, this.hoy());
-      return { ok: true, resumen: r, movimientos: cdOrdenar(d.movs).reverse(), config: cdNormalizarConfig(d.config), campos: CAUDAL_CONFIG };
+      if (!d.cuentas) { d.cuentas = this.cuentasIniciales(); this.guardarDatos(d); }
+      var cuentas = cdCuentasNormalizar(d.cuentas);
+      var todas = cdCalcularCuentas(d.movs, d.config, cuentas, this.hoy());
+      var movs = [];
+      todas.forEach(function (t) { t.movimientos.forEach(function (m) { movs.push(Object.assign({}, m, { cuenta: t.id })); }); });
+      return {
+        ok: true, resumen: todas[0].resumen, config: todas[0].config, movimientos: cdOrdenar(movs).reverse(), campos: CAUDAL_CONFIG,
+        cuentas: todas.map(function (t) { return { id: t.id, nombre: t.nombre, tipo: t.tipo, color: t.color, resumen: t.resumen, config: t.config }; })
+      };
     },
     llamar: async function (accion, datos) {
       await new Promise(function (r) { setTimeout(r, 250); });
       var d = this.datos();
-      var cfg = cdNormalizarConfig(d.config);
+      if (!d.cuentas) d.cuentas = this.cuentasIniciales();
+      var cuentas = cdCuentasNormalizar(d.cuentas);
+      var e0 = (datos && datos.mov) || {};
+      var cta = cdBuscarCuenta(cuentas, e0.cuenta) || cdBuscarCuenta(cuentas, (d.movs.filter(function (x) { return x.id === (datos && datos.id); })[0] || {}).cuenta) || cuentas[0];
+      var cfgC = cdConfigDeCuenta(d.config, cta, cta.id === cuentas[0].id);
+      var cfg = cdNormalizarConfig(cfgC);
+      if (accion === 'activa') return { ok: true };
+      if (accion === 'cuenta') {
+        var nueva = Object.assign({ id: 'c' + Date.now().toString(36), tipo: 'debito', color: CD_COLOR_BASE }, datos.datos || {});
+        d.cuentas.push(nueva); this.guardarDatos(d);
+        var est0 = this.estado(d); est0.cuenta_nueva = nueva.id; return est0;
+      }
       if (accion === 'agregar' || accion === 'editar') {
         var e = datos.mov || {};
         var monto = cdLeerMonto(e.monto);
         if (!(monto > 0)) throw new Error('Falta el monto');
         if (e.tipo === 'ajuste' && String(e.monto).trim().charAt(0) === '-') monto = -monto;
         var mov = {
-          tipo: e.tipo, medio: (e.tipo === 'deposito' || e.tipo === 'pago_tarjeta') ? 'debito' : (e.medio === 'debito' ? 'debito' : 'credito'),
+          cuenta: cta.id,
+          tipo: e.tipo, medio: (e.tipo === 'deposito' || e.tipo === 'pago_tarjeta' || cta.tipo === 'debito') ? 'debito' : (e.medio === 'debito' ? 'debito' : 'credito'),
           monto: cdRedondear(monto), fecha: e.fecha || this.hoy(), descripcion: e.descripcion || '',
           categoria: e.tipo === 'compra' ? (e.categoria || cfg.categoria_default) : '', nuevo_periodo: !!e.nuevo_periodo, origen: e.origen === 'cashback' ? 'cashback' : 'demo'
         };
@@ -130,11 +165,21 @@
         }
         this.guardarDatos(d);
         var est = this.estado(d);
-        if (accion === 'agregar') est.mensaje = cdMensajeAnotado(mov, est.resumen);
+        var rc = est.cuentas.filter(function (c) { return c.id === cta.id; })[0].resumen;
+        if (accion === 'agregar') est.mensaje = cdMensajeAnotado(mov, rc, est.cuentas.length > 1);
         return est;
       }
       if (accion === 'borrar') { d.movs = d.movs.filter(function (x) { return x.id !== datos.id; }); this.guardarDatos(d); }
-      if (accion === 'config') { Object.assign(d.config, datos.valores || {}); this.guardarDatos(d); }
+      if (accion === 'config') {
+        var vals = datos.valores || {}, vc = datos.valores_cuenta || {};
+        Object.keys(vals).forEach(function (k) { if (CAUDAL_CAMPOS_TARJETA.indexOf(k) < 0) d.config[k] = vals[k]; });
+        var i = d.cuentas.findIndex(function (c) { return c.id === datos.cuenta; });
+        if (i >= 0) {
+          Object.assign(d.cuentas[i], vc);
+          if (i === 0) CAUDAL_CAMPOS_TARJETA.forEach(function (k) { if (k in vc) d.config[k] = vc[k]; });
+        }
+        this.guardarDatos(d);
+      }
       return this.estado(d);
     }
   };
@@ -217,6 +262,126 @@
     return 'hace ' + Math.round(s / 86400) + ' días';
   }
 
+  /* ===================== cuentas y colores ===================== */
+
+  /** Las cuentas que mandó la hoja. Una versión vieja de la hoja (sin cuentas) = solo DiDi. */
+  function listaCuentas() {
+    if (crudo && crudo.cuentas && crudo.cuentas.length) return crudo.cuentas;
+    return [{ id: 'didi', nombre: 'DiDi', tipo: 'credito', color: CD_COLOR_BASE, resumen: crudo.resumen, config: crudo.config }];
+  }
+
+  /** Arma "estado" con lo de la cuenta activa; el resto de la app solo ve esa cuenta. */
+  function derivar() {
+    var cs = listaCuentas(), primera = cs[0].id;
+    var id = leer(LS.cuenta) || crudo.cuenta_activa;
+    var c = cs.filter(function (x) { return x.id === id; })[0] || cs[0];
+    var existe = {}; cs.forEach(function (x) { existe[x.id] = 1; });
+    estado = {
+      resumen: c.resumen, config: c.config, campos: crudo.campos, cuenta: c, cuentas: cs, _recibido: crudo._recibido,
+      movimientos: (crudo.movimientos || []).filter(function (m) { return (existe[m.cuenta] ? m.cuenta : primera) === c.id; })
+    };
+  }
+  function varias() { return !!estado && estado.cuentas.length > 1; }
+  function esDebito() { return !!estado && estado.resumen.tipo === 'debito'; }
+  function nom() { return estado && estado.cuenta ? estado.cuenta.nombre : 'DiDi'; }
+  /** Color con que se reconoce cada cuenta (su acento, que se lee bien sobre el fondo oscuro). */
+  function colorPunto(c) { return cdPaletaCuenta(c.color).acento; }
+  function punto(c) { return '<span class="cuenta-punto" style="background:' + esc(colorPunto(c)) + '" aria-hidden="true"></span>'; }
+
+  function cambiarCuenta(id) {
+    if (!estado || id === estado.cuenta.id) return;
+    guardar(LS.cuenta, id);
+    filtro = 'todos'; mesMov = null; previaColor = null;
+    derivar();
+    aplicarTema(estado.cuenta.color, true, function () { pintar(); });
+    // La hoja recuerda la cuenta elegida, para el widget del iPhone. Si falla no importa.
+    if (!conexion().demo) llamar('activa', { cuenta: id }).catch(function () {});
+  }
+
+  /*
+   * Tema: la hoja de estilos está hecha en verde bosque (DiDi). Para otra cuenta se reescriben sus
+   * colores (mismo diseño, mismas luces y sombras; solo cambia el tono) con cdTema de calculos.js,
+   * que también cuida el contraste. Con el color de DiDi no se toca nada.
+   */
+  var cssOriginal = null, temaPuesto = null;
+  function textoCss() {
+    if (!cssOriginal) cssOriginal = fetch('styles.css').then(function (r) { if (!r.ok) throw new Error(); return r.text(); });
+    return cssOriginal;
+  }
+  function cssConTema(txt, tema) {
+    var memo = {};
+    var conv = function (rgb, a) {
+      var k = rgb.join(',') + '/' + a;
+      if (!memo[k]) {
+        var c = cdColorTema(rgb, tema).map(Math.round);
+        memo[k] = a == null ? cdRgbAHex(c) : 'rgba(' + c.join(', ') + ', ' + a + ')';
+      }
+      return memo[k];
+    };
+    return txt.replace(/#([0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})(?![\w-])|rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+%?)\s*)?\)/g, function (todo, hex, r, g, b, a) {
+      if (hex) {
+        var h = hex.length <= 4 ? hex.split('').map(function (x) { return x + x; }).join('') : hex;
+        var alfa = h.length === 8 ? +(parseInt(h.slice(6, 8), 16) / 255).toFixed(3) : null;
+        return conv(cdHexARgb(h.slice(0, 6)), alfa);
+      }
+      return conv([+r, +g, +b], a == null ? null : a);
+    });
+  }
+  function ponerMetaColor(tema) {
+    var m = $('meta[name="theme-color"]');
+    if (m) m.setAttribute('content', cdHexTema('#070b0a', tema));
+  }
+  /** Pinta toda la app con el color de una cuenta. animar: transición suave (si el teléfono la tiene). */
+  function aplicarTema(color, animar, despues) {
+    var tema = cdTema(color), clave = tema.color;
+    var link = $('link[rel="stylesheet"]');
+    var cambiar = function (css) {
+      var st = $('#tema-css');
+      if (tema.base) { if (st) st.remove(); link.disabled = false; }
+      else {
+        if (!st) { st = document.createElement('style'); st.id = 'tema-css'; link.parentNode.insertBefore(st, link.nextSibling); }
+        if (st.textContent !== css) st.textContent = css;
+        link.disabled = true;
+      }
+      ponerMetaColor(tema);
+      temaPuesto = clave;
+      if (despues) despues();
+    };
+    var hacer = function (css) {
+      if (animar && document.startViewTransition && !sinMovimiento() && temaPuesto !== clave) document.startViewTransition(function () { cambiar(css); });
+      else cambiar(css);
+    };
+    if (tema.base) { guardar(LS.tema, null); hacer(''); return; }
+    textoCss().then(function (txt) {
+      var css = cssConTema(txt, tema);
+      guardar(LS.tema, JSON.stringify({ color: clave, css: css }));
+      hacer(css);
+    }).catch(function () { if (despues) despues(); });
+  }
+
+  /** Selector de cuentas (arriba en Inicio y en Ajustes). Solo aparece si hay más de una. */
+  function pintarSelectores() {
+    ['#cuentas-sel', '#cuentas-sel-cfg'].forEach(function (sel) {
+      var caja = $(sel);
+      if (!caja) return;
+      caja.hidden = !varias();
+      if (!varias()) { caja.innerHTML = ''; caja._clave = ''; return; }
+      var clave = estado.cuentas.map(function (c) { return c.id + ':' + c.nombre + ':' + c.color; }).join('|') + '>' + estado.cuenta.id;
+      if (caja._clave === clave) return;  // ya está así (y la ficha ya se deslizó sola)
+      caja._clave = clave;
+      caja.innerHTML = '';
+      var seg = segmentado(sel.slice(1) + '-v', estado.cuentas.map(function (c) { return { v: c.id, t: c.nombre, punto: colorPunto(c) }; }), estado.cuenta.id, function (v) {
+        // Que el otro selector (Inicio/Ajustes) se vuelva a armar con la cuenta nueva.
+        $$('.cuentas-sel').forEach(function (x) { if (x !== caja) x._clave = ''; });
+        caja._clave = estado.cuentas.map(function (c) { return c.id + ':' + c.nombre + ':' + c.color; }).join('|') + '>' + v;
+        cambiarCuenta(v);
+      });
+      seg.classList.add('seg-cuentas');
+      seg.setAttribute('aria-label', 'Cuenta');
+      caja.appendChild(seg);
+    });
+  }
+
   /* ===================== inicio ===================== */
 
   var vistaActual = 'inicio';
@@ -241,21 +406,36 @@
     if (!estado) return;
     var r = estado.resumen, cfg = estado.config;
     var vacio = !estado.movimientos.length;
+    // La app toma el color de la cuenta (o el que se está probando en Ajustes).
+    var colorVer = previaColor || estado.cuenta.color;
+    if (cdTema(colorVer).color !== temaPuesto) aplicarTema(colorVer, false);
 
-    $('#fecha-hoy').textContent = fecha(r.hoy);
+    // Con varias cuentas, arriba se ve siempre en cuál estás (con su color).
+    $('#fecha-hoy').innerHTML = varias() ? punto(estado.cuenta) + '<span class="cuenta-nombre">' + esc(nom()) + '</span> · ' + esc(fecha(r.hoy)) : esc(fecha(r.hoy));
     ponerTitulo();
     $('#banda-demo').hidden = !conexion().demo;
+    pintarSelectores();
+
+    // Cuenta de solo débito (como Nu): sin tarjeta, corte ni cashback.
+    var deb = esDebito();
+    var bp = $('.accion[data-form="pago_tarjeta"]');
+    if (bp) bp.hidden = deb;
+    $('.acciones').classList.toggle('tres', deb);
+    $('.accion[data-form="otro"]').setAttribute('aria-label', 'Cuadrar con ' + nom());
 
     pintarHeroe(r, vacio);
     pintarAvisos(r, vacio);
     pintarBienvenida(vacio);
-    ['#tarjeta-credito', '#fila-debito', '#grupo-fechas', '#grupo-periodo', '#grupo-recientes'].forEach(function (s) { $(s).hidden = vacio; });
-    $('#fila-cashback').hidden = vacio || !cbActivo();
+    ['#tarjeta-credito', '#fila-debito', '#grupo-fechas'].forEach(function (s) { $(s).hidden = vacio || deb; });
+    ['#grupo-periodo', '#grupo-recientes'].forEach(function (s) { $(s).hidden = vacio; });
+    $('#fila-cashback').hidden = vacio || deb || !cbActivo();
     if (!vacio) {
-      pintarTarjeta(r, cfg);
-      pintarCuentas(r);
-      if (cbActivo()) pintarCashback(r, cfg);
-      pintarFechas(r);
+      if (!deb) {
+        pintarTarjeta(r, cfg);
+        pintarCuentas(r);
+        if (cbActivo()) pintarCashback(r, cfg);
+        pintarFechas(r);
+      }
       pintarPeriodo(r, cfg);
       pintarRecientes();
     }
@@ -266,6 +446,9 @@
 
     pintarMovimientos();
     pintarConfig();
+    $('#grupo-calculo').hidden = esDebito();
+    $('#fx-debito-txt').textContent = 'Tienes en ' + nom() + ' débito';
+    $('#fx-pie-didi').textContent = 'Si algo no coincide con la app de ' + nom() + ', usa Cuadrar en Inicio.';
     if (estado.resumen) {
       var rr = estado.resumen;
       $('#fx-debito').textContent = cdPesos(rr.saldo_debito);
@@ -279,7 +462,8 @@
     var est = vacio ? 'bien' : r.estado_libre;
     heroe.classList.toggle('bajo', est === 'bajo');
     heroe.classList.toggle('negativo', est === 'negativo');
-    $('#heroe-estado').textContent = vacio ? 'Sin datos' : est === 'negativo' ? 'Te pasaste' : est === 'bajo' ? 'Queda poco' : 'Vas bien';
+    $('#heroe-estado').textContent = vacio ? 'Sin datos' : est === 'negativo' ? (esDebito() ? 'Revisa' : 'Te pasaste') : est === 'bajo' ? 'Queda poco' : 'Vas bien';
+    $('.heroe-etiqueta').textContent = esDebito() ? 'Tienes en ' + nom() : 'Libre para gastar';
     var heroeEl = $('#heroe');
     if (estado._libreAntes != null && estado._libreAntes !== r.libre) {
       heroeEl.classList.remove('destello', 'baja'); void heroeEl.offsetWidth;
@@ -289,10 +473,16 @@
     animarMonto($('#libre-monto'), r.libre, true);
 
     var p = vacio ? null : resumenMes(r, estado.config), sub;
-    if (vacio) sub = 'Anota el dinero que tienes y aquí verás cuánto puedes gastar.';
-    else {
+    if (vacio) sub = esDebito() ? 'Anota lo que tienes en ' + esc(nom()) + ' y aquí verás tu saldo.' : 'Anota el dinero que tienes y aquí verás cuánto puedes gastar.';
+    else if (esDebito()) {
+      // Solo débito: el número de arriba es lo que debería verse en la app del banco. Tocar el texto abre Cuadrar.
+      sub = 'Es lo que deberías ver en ' + esc(nom()) + '. <button type="button" class="cifra cifra-texto" data-cuadrar="ajuste" aria-label="Cuadrar con ' + esc(nom()) + '">Cuadrar</button>';
+      var dH = hoyMexico(), cH = estado.movimientos.filter(function (m) { return m.tipo === 'compra' && m.fecha === dH; });
+      var gH = cdRedondear(cH.reduce(function (t, m) { return t + (Number(m.monto) || 0); }, 0));
+      sub += '<span class="heroe-dia">' + (cH.length ? 'Hoy llevas <b>' + cdPesos(gH) + '</b> gastados' + (cH.length > 1 ? ' en ' + cH.length + ' compras.' : '.') : 'Hoy no has anotado compras.') + '</span>';
+    } else {
       // Las dos cifras son botones discretos: tocar una abre Cuadrar con esa cuenta (débito o tarjeta).
-      var cifra = function (n, clase, etq) { return '<button type="button" class="cifra" data-cuadrar="' + clase + '" aria-label="' + etq + ' ' + pesosSinCentavos(n) + '. Toca para cuadrar con DiDi">' + pesosSinCentavos(n) + '</button>'; };
+      var cifra = function (n, clase, etq) { return '<button type="button" class="cifra" data-cuadrar="' + clase + '" aria-label="' + etq + ' ' + pesosSinCentavos(n) + '. Toca para cuadrar con ' + esc(nom()) + '">' + pesosSinCentavos(n) + '</button>'; };
       sub = r.libre < 0 ? 'La tarjeta debe ' + cifra(r.deuda_tarjeta, 'deuda', 'Debe la tarjeta') + ' y en débito tienes ' + cifra(r.saldo_debito, 'ajuste', 'En débito') + '.'
         : 'En débito ' + cifra(r.saldo_debito, 'ajuste', 'En débito') + (r.deuda_tarjeta > 0 ? ' menos ' + cifra(r.deuda_tarjeta, 'deuda', 'Debe la tarjeta') + ' de la tarjeta.' : ', la tarjeta no debe nada.');
       // Lo gastado hoy, con el día de México (igual que la hoja), no el del reloj del teléfono.
@@ -312,7 +502,7 @@
       var pct = Math.min(100, Math.round(p.gastado / total * 100));
       requestAnimationFrame(function () { $('#heroe-barra-relleno').style.clipPath = 'inset(0 ' + (100 - pct) + '% 0 0 round 99px)'; });
       $('#heroe-gastado').textContent = 'Gastado este mes ' + pesosSinCentavos(p.gastado);
-      $('#heroe-recibido').textContent = 'Libre ' + pesosSinCentavos(Math.max(0, r.libre));
+      $('#heroe-recibido').textContent = (esDebito() ? 'Queda ' : 'Libre ') + pesosSinCentavos(Math.max(0, r.libre));
     }
   }
 
@@ -342,7 +532,7 @@
       // La tarjeta Libre y la de crédito ya dicen esto; aquí solo lo urgente.
       if (a.clave === 'libre_bajo' || (a.clave === 'pago_pendiente' && a.nivel === 'info')) return;
       if (a.clave === 'tope_cashback' && !cbActivo()) return;
-      if (a.clave === 'libre_negativo') a = { nivel: a.nivel, clave: a.clave, texto: 'La tarjeta debe ' + cdPesos(-r.libre) + ' más de lo que tienes en débito. Mejor no usarla hasta recibir más dinero.' };
+      if (a.clave === 'libre_negativo' && !esDebito()) a = { nivel: a.nivel, clave: a.clave, texto: 'La tarjeta debe ' + cdPesos(-r.libre) + ' más de lo que tienes en débito. Mejor no usarla hasta recibir más dinero.' };
       var icono = a.nivel === 'info' ? (a.clave === 'tope_cashback' ? 'sparkle' : 'calendar') : 'warn';
       ul.appendChild(h('li', { class: 'aviso aviso-' + a.nivel, html: '<span class="aviso-ico">' + ico(icono) + '</span><span>' + esc(a.texto) + '</span>' }));
     });
@@ -355,12 +545,14 @@
     caja.className = 'bienvenida';
     caja.innerHTML = '';
     caja.appendChild(h('h2', { text: 'Empecemos' }));
-    caja.appendChild(h('p', { text: 'Tres pasos y Caudal sabrá cuánto tienes libre.' }));
-    [
-      { t: 'Anota lo que tienes en débito', s: 'El saldo de hoy en DiDi débito', fn: function () { abrirForm('otro', null, { clase: 'ajuste' }); } },
-      { t: '¿La tarjeta ya debe algo?', s: 'Escribe el saldo total que ves en DiDi', fn: function () { abrirForm('otro', null, { clase: 'deuda' }); } },
+    var pasos = [
+      { t: 'Anota lo que tienes en débito', s: 'El saldo de hoy en ' + nom() + ' débito', fn: function () { abrirForm('otro', null, { clase: 'ajuste' }); } },
+      { t: '¿La tarjeta ya debe algo?', s: 'Escribe el saldo total que ves en ' + nom(), fn: function () { abrirForm('otro', null, { clase: 'deuda' }); } },
       { t: 'Revisa los datos de tu tarjeta', s: 'Día de corte y día límite de pago', fn: function () { mostrarVista('ajustes'); } }
-    ].forEach(function (p, i) {
+    ];
+    if (esDebito()) pasos = [{ t: 'Anota lo que tienes en ' + nom(), s: 'El saldo que ves hoy en su app', fn: function () { abrirForm('otro', null, { clase: 'ajuste' }); } }];
+    caja.appendChild(h('p', { text: esDebito() ? 'Un paso y Caudal sabrá cuánto tienes.' : 'Tres pasos y Caudal sabrá cuánto tienes libre.' }));
+    pasos.forEach(function (p, i) {
       caja.appendChild(h('button', { class: 'paso', type: 'button', onclick: p.fn, html:
         '<span class="paso-num">' + (i + 1) + '</span><span class="paso-txt"><b>' + esc(p.t) + '</b><small>' + esc(p.s) + '</small></span>' + ico('chevron') }));
     });
@@ -427,9 +619,9 @@
     var el = $('#fila-debito');
     el.className = 'fila-cashback fila-debito tocable';
     el.innerHTML = '<span class="fcb-ico">' + ico('wallet') + '</span>' +
-      '<span class="fcb-txt"><small>Deberías ver en DiDi débito</small><b class="num">' + montoHtml(r.saldo_debito) + '</b>' + barra + '<small class="fdb-nota">' + nota + '</small></span>' +
+      '<span class="fcb-txt"><small>Deberías ver en ' + esc(nom()) + ' débito</small><b class="num">' + montoHtml(r.saldo_debito) + '</b>' + barra + '<small class="fdb-nota">' + nota + '</small></span>' +
       '<span class="tarjeta-accion">Cuadrar ' + ico('chevron') + '</span>';
-    el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0'); el.setAttribute('aria-label', 'Cuadrar el débito con DiDi');
+    el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0'); el.setAttribute('aria-label', 'Cuadrar el débito con ' + nom());
     el.onclick = function () { abrirForm('otro', null, { clase: 'ajuste' }); };
   }
 
@@ -494,7 +686,7 @@
     var nota = 'Este mes llevas ' + pesosSinCentavos(cb.mes) + (cb.tope ? ' de ' + pesosSinCentavos(cb.tope) : '');
     el.className = 'fila-cashback tocable';
     el.innerHTML = '<span class="fcb-ico">' + ico('sparkle') + '</span>' +
-      '<span class="fcb-txt"><small>Cashback por usar en DiDi</small><b class="num">' + montoHtml(cb.porUsar) + '</b><small>' + nota + '</small></span>' +
+      '<span class="fcb-txt"><small>Cashback por usar en ' + esc(nom()) + '</small><b class="num">' + montoHtml(cb.porUsar) + '</b><small>' + nota + '</small></span>' +
       '<span class="tarjeta-accion">Lo usé ' + ico('chevron') + '</span>';
     el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0'); el.setAttribute('aria-label', 'Anotar que usaste tu cashback');
     el.onclick = function () { abrirForm('otro', null, { clase: 'cashback' }); };
@@ -554,7 +746,7 @@
       '<p class="tk-pie">Conservas <b>' + pQueda + '%</b> de tu dinero del mes.</p>';
     else pie = '';
     tk += '<div class="tk-fila tk-resultado' + (r.libre < 0 ? ' neg' : '') + '"><span class="tk-ico tk-igual" aria-hidden="true">=</span>' +
-      '<span class="tk-etq">Te queda libre</span><span class="tk-valor num">' + (r.libre < 0 ? '−' : '') + redondo(r.libre) + '</span></div>' + pie;
+      '<span class="tk-etq">' + (esDebito() ? 'Te queda' : 'Te queda libre') + '</span><span class="tk-valor num">' + (r.libre < 0 ? '−' : '') + redondo(r.libre) + '</span></div>' + pie;
     caja.appendChild(h('div', { class: 'tk', html: tk }));
 
     var cats = Object.keys(m.cats).sort(function (a, b) { return m.cats[b] - m.cats[a]; });
@@ -632,8 +824,8 @@
   }
   function detalleMov(m, conFecha) {
     var d;
-    if (m.tipo === 'compra') d = (m.medio === 'debito' ? 'Débito' : 'Tarjeta') + (m.categoria && m.descripcion && m.descripcion !== m.categoria ? ' · ' + m.categoria : '') + (m.origen === 'wallet' ? ' · automático' : m.origen === 'atajo' ? ' · rápido' : '');
-    else if (m.tipo === 'deposito') d = 'A tu débito';
+    if (m.tipo === 'compra') d = (esDebito() ? nom() : m.medio === 'debito' ? 'Débito' : 'Tarjeta') + (m.categoria && m.descripcion && m.descripcion !== m.categoria ? ' · ' + m.categoria : '') + (m.origen === 'wallet' ? ' · automático' : m.origen === 'atajo' ? ' · rápido' : '');
+    else if (m.tipo === 'deposito') d = esDebito() ? 'A ' + nom() : 'A tu débito';
     else if (m.tipo === 'pago_tarjeta') d = 'De débito a la tarjeta';
     else if (m.tipo === 'cashback') d = 'Regreso de la tarjeta';
     else if (esUsoCashback(m)) d = 'Usaste tu cashback';
@@ -707,14 +899,14 @@
       b.onclick = function () { filtro = on ? 'todos' : tipo; animarLista = true; pintarMovimientos(); };
       return b;
     };
-    var notaGasto = t.nCompra ? (t.debito && t.credito ? 'Tarjeta ' + pesosSinCentavos(Math.round(t.credito)) + ' · Débito ' + pesosSinCentavos(Math.round(t.debito)) : veces(t.nCompra, 'compra', 'compras')) : 'Sin compras';
+    var notaGasto = t.nCompra ? (t.debito && t.credito && !esDebito() ? 'Tarjeta ' + pesosSinCentavos(Math.round(t.credito)) + ' · Débito ' + pesosSinCentavos(Math.round(t.debito)) : veces(t.nCompra, 'compra', 'compras')) : 'Sin compras';
     var primeraVez = !leer('caudal.pistaFiltro');
     if (primeraVez) guardar('caudal.pistaFiltro', 1);
     cont.appendChild(h('div', { class: 'resumen-movs' + (filtro !== 'todos' ? ' hay-filtro' : '') + (primeraVez ? ' pista' : '') }, [
       tile('compra', 'Gastaste', t.compra, notaGasto, 'rt-gasto'),
-      h('div', { class: 'resumen-fila' }, [
+      h('div', { class: 'resumen-fila' + (esDebito() && !t.nPago ? ' sola' : '') }, [
         tile('deposito', 'Recibiste', t.deposito, t.nDep ? veces(t.nDep, 'vez', 'veces') : 'Nada', 'rt-recibido'),
-        tile('pago_tarjeta', 'Pagaste', t.pago_tarjeta, t.nPago ? veces(t.nPago, 'pago', 'pagos') + ' a tarjeta' : 'Nada a la tarjeta', 'rt-pago')
+        esDebito() && !t.nPago ? null : tile('pago_tarjeta', 'Pagaste', t.pago_tarjeta, t.nPago ? veces(t.nPago, 'pago', 'pagos') + ' a tarjeta' : 'Nada a la tarjeta', 'rt-pago')
       ])
     ]));
 
@@ -751,7 +943,7 @@
 
   var SECCIONES_CFG = [
     { t: 'Tú', c: ['nombre'] },
-    { t: 'Tarjeta de crédito', c: ['dia_corte', 'dia_limite'], pie: 'Los dos días vienen en el estado de cuenta de DiDi.', vista: 'fechas' },
+    { t: 'Tarjeta de crédito', c: ['dia_corte', 'dia_limite'], pie: 'Los dos días vienen en el estado de cuenta de {cuenta}.', vista: 'fechas' },
     { t: 'Compras', c: ['categorias', 'categoria_default'] },
     { t: 'Cashback', c: ['cashback_pct', 'categorias_cashback', 'cashback_tope'] },
     { t: 'Recordatorios', c: ['aviso_libre_bajo', 'avisos_dias_antes', 'avisos_correo'], pie: 'Los correos salen cada mañana a las 8, solo si hay algo que recordar.' }
@@ -763,7 +955,7 @@
   // Textos más claros que los de la hoja (la hoja guarda los mismos valores).
   var ETQ_CFG = {
     nombre: ['Nombre', 'Cómo te saluda la app.'],
-    dia_corte: ['Día de corte', 'Cuando DiDi cierra el estado de cuenta.'],
+    dia_corte: ['Día de corte', 'Cuando {cuenta} cierra el estado de cuenta.'],
     dia_limite: ['Día límite de pago', 'Hasta cuándo puedes pagar sin intereses.'],
     categorias: ['Tus categorías', 'Toca × para quitar una o agrega otra.'],
     categoria_default: ['Categoría del ícono Anotar', 'Las compras rápidas se guardan en esta.'],
@@ -874,7 +1066,8 @@
       if (alCambiar) alCambiar(o.v);
     };
     var botones = lista.map(function (o, idx) {
-      var b = h('button', { type: 'button', class: 'segmento' + (idx === actual ? ' activo' : ''), role: 'radio', 'aria-checked': idx === actual ? 'true' : 'false', text: o.t });
+      var b = h('button', { type: 'button', class: 'segmento' + (idx === actual ? ' activo' : ''), role: 'radio', 'aria-checked': idx === actual ? 'true' : 'false',
+        html: (o.punto ? '<span class="cuenta-punto" style="background:' + esc(o.punto) + '" aria-hidden="true"></span>' : '') + esc(o.t) });
       b.addEventListener('click', function () { if (!arrastrado) elegir(idx); });
       cont.appendChild(b);
       return b;
@@ -987,6 +1180,100 @@
     return { rehacer: rehacer, activo: function () { return activo; } };
   }
 
+  /** Colores para elegir rápido (el último botón abre la rueda de colores del iPhone). */
+  var COLORES = [
+    { c: '#2f6b4a', t: 'Verde bosque' }, { c: '#820ad1', t: 'Morado' }, { c: '#1f5fbf', t: 'Azul' }, { c: '#0f8a8a', t: 'Turquesa' },
+    { c: '#d81b60', t: 'Rosa' }, { c: '#e5701b', t: 'Naranja' }, { c: '#b8892c', t: 'Dorado' }, { c: '#5b6670', t: 'Grafito' }
+  ];
+  var previaColor = null;   // color que se está probando en Ajustes (aún sin guardar)
+
+  /**
+   * Color de la cuenta: muestras para tocar y una vista previa (la tarjeta Libre en ese color).
+   * Al tocar un color toda la app se pinta así para verla; si no se guarda, regresa al de antes.
+   */
+  function editorColor(c) {
+    var actual = cdColorValido(previaColor || c.color) || CD_COLOR_BASE;
+    var oculto = h('input', { type: 'hidden', id: 'cta-color', value: actual });
+    var cont = h('div', { class: 'colores', role: 'radiogroup', 'aria-label': 'Color de la cuenta' });
+    var nota = h('p', { class: 'color-nota', 'aria-live': 'polite' });
+    var previa = h('div', { class: 'heroe heroe-previa', 'aria-hidden': 'true' });
+    var rueda = h('input', { type: 'color', class: 'color-rueda', value: actual, 'aria-label': 'Otro color' });
+    var pintarPrevia = function (col) {
+      var tema = cdTema(col), nomb = ($('#cta-nombre') && $('#cta-nombre').value.trim()) || c.nombre;
+      previa.innerHTML = '<div class="heroe-brillo"></div><div class="heroe-top"><span class="heroe-etiqueta">' + punto({ color: col }) + esc(nomb) + '</span><span class="pastilla">Vas bien</span></div>' +
+        '<p class="heroe-monto num">' + montoHtml(1234.5, true) + '</p>';
+      nota.textContent = (tema.base ? 'El verde de siempre.' : 'Así se verá toda la app con ' + nomb + '.') + (tema.ajustado ? ' Ajustamos un poco el tono para que todo se lea bien.' : '');
+    };
+    var ruedaBtn;
+    var elegir = function (col, desdeRueda) {
+      col = cdColorValido(col); if (!col) return;
+      oculto.value = col;
+      $$('.color', cont).forEach(function (b) { var on = b.dataset.c === col; b.classList.toggle('activo', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
+      var enLista = COLORES.some(function (x) { return x.c === col; });
+      ruedaBtn.classList.toggle('activo', !enLista);
+      if (!enLista) ruedaBtn.style.setProperty('--c', col);
+      if (!desdeRueda) rueda.value = col;
+      previaColor = col === cdColorValido(estado.cuenta.color) ? null : col;
+      aplicarTema(col, true);
+      pintarPrevia(col);
+      oculto.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    COLORES.forEach(function (x) {
+      var on = x.c === actual;
+      cont.appendChild(h('button', { type: 'button', class: 'color' + (on ? ' activo' : ''), role: 'radio', 'aria-checked': on ? 'true' : 'false', 'aria-label': x.t, 'data-c': x.c,
+        style: '--c:' + x.c, html: ico('check'), onclick: function () { elegir(x.c); } }));
+    });
+    ruedaBtn = h('label', { class: 'color color-otro' + (COLORES.some(function (x) { return x.c === actual; }) ? '' : ' activo'), style: '--c:' + actual, title: 'Otro color' }, [rueda]);
+    ruedaBtn.insertAdjacentHTML('beforeend', ico('check'));
+    rueda.addEventListener('input', function () { elegir(rueda.value, true); });
+    cont.appendChild(ruedaBtn);
+    cont.appendChild(oculto);
+    pintarPrevia(actual);
+    var fila = h('div', { class: 'fila campo-fila campo-ancho color-fila' }, [h('label', { html: '<b>Color</b><small>El de la tarjeta o del banco. La app entera toma ese color.</small>' }), cont, previa, nota]);
+    fila._repintar = function () { pintarPrevia(oculto.value); };
+    return fila;
+  }
+
+  /** Nombre, tipo y color de la cuenta que se está viendo, y el botón para agregar otra. */
+  function seccionCuenta() {
+    var c = estado.cuenta;
+    var lista = h('div', { class: 'lista-ios' });
+    var inNom = h('input', { id: 'cta-nombre', type: 'text', value: c.nombre, autocomplete: 'off', autocapitalize: 'words', enterkeyhint: 'done', placeholder: 'Ej. Nu', maxlength: '30' });
+    lista.appendChild(h('div', { class: 'fila campo-fila' }, [h('label', { for: 'cta-nombre', html: '<b>Nombre de la cuenta</b><small>Así aparece arriba y en el widget.</small>' }), inNom]));
+    var tipo = segmentado('cta-tipo', [{ v: 'credito', t: 'Tarjeta y débito' }, { v: 'debito', t: 'Solo débito' }], c.tipo, function (v) {
+      $$('[data-solo-credito]').forEach(function (x) { x.hidden = v === 'debito'; });
+    });
+    lista.appendChild(h('div', { class: 'fila campo-fila campo-ancho' }, [h('label', { html: '<b>Tipo</b><small>Solo débito: saldo y movimientos, sin tarjeta, corte ni cashback.</small>' }), tipo]));
+    var color = editorColor(c);
+    lista.appendChild(color);
+    inNom.addEventListener('input', color._repintar);
+    var agregar = h('button', { class: 'fila fila-boton', type: 'button', id: 'btn-agregar-cuenta', html: '<span class="fila-txt acento">Agregar otra cuenta</span>' + ico('plus', 'ico-chico') });
+    agregar.addEventListener('click', agregarCuenta);
+    lista.appendChild(agregar);
+    return h('section', { class: 'grupo' }, [h('h2', { class: 'grupo-etq', text: varias() ? 'Cuenta · ' + c.nombre : 'Tu cuenta' }), lista,
+      h('p', { class: 'grupo-pie', text: varias() ? 'Cada cuenta lleva su propio saldo: lo de una no cambia lo de otra.' : 'Puedes agregar otra cuenta, como Nu; cada una lleva su propio saldo.' })]);
+  }
+
+  async function agregarCuenta() {
+    var b = $('#btn-agregar-cuenta'), txt = $('.fila-txt', b);
+    if (b.dataset.armado !== '1') {
+      b.dataset.armado = '1'; txt.textContent = 'Toca otra vez para agregarla';
+      setTimeout(function () { b.dataset.armado = ''; txt.textContent = 'Agregar otra cuenta'; }, 4000);
+      return;
+    }
+    b.disabled = true; txt.textContent = 'Agregando…';
+    var usados = estado.cuentas.map(function (c) { return c.color; });
+    var color = (COLORES.filter(function (x) { return usados.indexOf(x.c) < 0; })[0] || COLORES[1]).c;
+    try {
+      var res = await llamar('cuenta', { datos: { nombre: 'Cuenta ' + (estado.cuentas.length + 1), tipo: 'debito', color: color } });
+      if (res.cuenta_nueva) guardar(LS.cuenta, res.cuenta_nueva);
+      previaColor = null;
+      recibir(res);
+      window.scrollTo(0, 0);
+      avisar('Cuenta nueva: ponle nombre y color');
+    } catch (e) { avisar(e.message, 4000, 'error'); b.disabled = false; txt.textContent = 'Agregar otra cuenta'; }
+  }
+
   function pintarConfig() {
     var f = $('#form-config');
     if (f.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return; // no borrar lo que se está escribiendo
@@ -1010,6 +1297,8 @@
     };
 
     var cbEditor = null;
+    f.appendChild(seccionCuenta());
+    var SOLO_CREDITO = { 'Tarjeta de crédito': 1, 'Cashback': 1 };
     SECCIONES_CFG.forEach(function (s) {
       var claves = s.c.filter(function (k) { return porClave[k] && !CFG_OCULTOS[k]; });
       if (!claves.length) return;
@@ -1021,7 +1310,7 @@
       }
       claves.forEach(function (clave) {
         var c = porClave[clave], tipo = c[2], valor = cfg[clave], id = 'cfg-' + clave, control;
-        var etq = ETQ_CFG[clave] || [c[3], c[4]];
+        var etq = (ETQ_CFG[clave] || [c[3], c[4]]).map(function (x) { return String(x || '').replace('{cuenta}', nom()).replace(' DiDi Card: $500.', nom() === 'DiDi' ? ' DiDi Card: $500.' : ''); });
         valor = valor === '' || valor == null ? '' : String(valor);
         if (clave === 'categorias') control = editorCategorias(id, valor, rehacerDependientes);
         else if (clave === 'categoria_default') control = chipsElegir(id, opcionesCat(cdLista(cfg.categorias), false), valor, false);
@@ -1047,7 +1336,7 @@
         lista.appendChild(filaCampo);
       });
       if (s.vista === 'fechas') lista.appendChild(h('div', { class: 'fila cfg-previa', id: 'cfg-previa', 'aria-live': 'polite' }));
-      f.appendChild(h('section', { class: 'grupo' }, [h('h2', { class: 'grupo-etq', text: s.t }), lista, s.pie ? h('p', { class: 'grupo-pie', text: s.pie }) : null]));
+      f.appendChild(h('section', { class: 'grupo', 'data-solo-credito': SOLO_CREDITO[s.t] ? '' : null, hidden: SOLO_CREDITO[s.t] && estado.cuenta.tipo === 'debito' }, [h('h2', { class: 'grupo-etq', text: s.t }), lista, s.pie ? h('p', { class: 'grupo-pie', text: s.pie.replace('{cuenta}', nom()) }) : null]));
     });
     previaFechas();
     var bg = $('#btn-guardar-cfg'); bg.classList.remove('visible'); bg.disabled = false; bg.textContent = 'Guardar cambios';
@@ -1055,7 +1344,7 @@
 
   async function guardarConfig(ev) {
     ev.preventDefault();
-    var valores = {};
+    var valores = {}, vc = {};
     (estado.campos || CAUDAL_CONFIG).forEach(function (c) {
       var el = $('#cfg-' + c[0]);
       if (!el) return;
@@ -1065,16 +1354,24 @@
         if (isNaN(n)) { avisar('Revisa: ' + c[3], 3500, 'error'); throw new Error('número inválido'); }
         v = n;
       }
-      valores[c[0]] = v;
+      // Lo de la tarjeta es de cada cuenta; lo demás, de todas.
+      if (CAUDAL_CAMPOS_TARJETA.indexOf(c[0]) >= 0) vc[c[0]] = v; else valores[c[0]] = v;
     });
-    var dc = Number(valores.dia_corte), dl = Number(valores.dia_limite);
-    if (!(dc >= 1 && dc <= 31)) { avisar('El día de corte debe ser entre 1 y 31', 3500, 'error'); return; }
-    if (valores.dia_limite !== '' && !(dl >= 1 && dl <= 31)) { avisar('El día límite debe ser entre 1 y 31', 3500, 'error'); return; }
+    vc.nombre = $('#cta-nombre').value.trim();
+    vc.tipo = $('#cta-tipo').value === 'debito' ? 'debito' : 'credito';
+    vc.color = $('#cta-color').value;
+    if (!vc.nombre) { avisar('Escribe el nombre de la cuenta', 3500, 'error'); return; }
+    if (estado.cuentas.some(function (c) { return c.id !== estado.cuenta.id && c.nombre.toLowerCase() === vc.nombre.toLowerCase(); })) { avisar('Ya hay una cuenta con ese nombre', 3500, 'error'); return; }
+    var dc = Number(vc.dia_corte), dl = Number(vc.dia_limite);
+    if (vc.tipo === 'credito' && 'dia_corte' in vc && !(dc >= 1 && dc <= 31)) { avisar('El día de corte debe ser entre 1 y 31', 3500, 'error'); return; }
+    if (vc.tipo === 'credito' && vc.dia_limite !== '' && vc.dia_limite != null && !(dl >= 1 && dl <= 31)) { avisar('El día límite debe ser entre 1 y 31', 3500, 'error'); return; }
     var btn = $('#btn-guardar-cfg');
     btn.disabled = true; btn.textContent = 'Guardando…';
     try {
       if (document.activeElement) document.activeElement.blur();
-      recibir(await llamar('config', { valores: valores }));
+      var res = await llamar('config', { valores: valores, cuenta: estado.cuenta.id, valores_cuenta: vc });
+      previaColor = null;
+      recibir(res);
       avisar('Ajustes guardados');
     } catch (e) { avisar(e.message, 4000, 'error'); btn.disabled = false; btn.textContent = 'Guardar cambios'; }
   }
@@ -1213,45 +1510,65 @@
   function actualizarNota() {
     var nota = $('#hoja-nota');
     if (!nota || !formActual) return;
-    var n = Number(teclado.txt) || 0, r = estado.resumen, cfg = estado.config, tipo = formActual.tipo, txt = '';
+    var cf = cuentaDelForm(), deb = cf.tipo === 'debito';
+    var n = Number(teclado.txt) || 0, r = cf.resumen, cfg = cf.config, tipo = formActual.tipo, txt = '';
+    var medioCaja = $('#f-medio-caja'); if (medioCaja) medioCaja.hidden = deb;
     var previo = formActual.mov ? Math.abs(Number(formActual.mov.monto) || 0) : 0;
     if (tipo === 'compra') {
       if (n > 0) {
         var libre = r.libre - n + (formActual.mov ? previo : 0);
-        txt = libre < 0 ? 'Te pasarías por ' + cdPesos(-libre) : 'Te quedarían ' + cdPesos(libre) + ' libres';
-        var credito = valorDe('medio') === 'credito', cat = valorDe('categoria');
-        if (credito && pctCat(cat) > 0) txt += ' · cashback ≈ ' + cdPesos(n * pctCat(cat) / 100);
-      } else txt = 'Tienes ' + cdPesos(r.libre + previo) + ' libres';
+        if (deb) txt = libre < 0 ? 'Quedarías en ' + cdPesos(libre) + ' en ' + cf.nombre : 'Te quedarían ' + cdPesos(libre) + ' en ' + cf.nombre;
+        else txt = libre < 0 ? 'Te pasarías por ' + cdPesos(-libre) : 'Te quedarían ' + cdPesos(libre) + ' libres';
+        var credito = !deb && valorDe('medio') === 'credito', cat = valorDe('categoria');
+        var pct = Number(cfg.cashback_pct) > 0 ? cdPctCategoria(cat, cfg) : 0;
+        if (credito && pct > 0) txt += ' · cashback ≈ ' + cdPesos(n * pct / 100);
+      } else txt = deb ? 'Tienes ' + cdPesos(r.libre + previo) + ' en ' + cf.nombre : 'Tienes ' + cdPesos(r.libre + previo) + ' libres';
     } else if (tipo === 'deposito') {
-      txt = n > 0 ? 'Tendrías ' + cdPesos(r.libre + n - previo) + ' libres' : 'Lo que llegó a tu DiDi débito';
+      txt = n > 0 ? 'Tendrías ' + cdPesos(r.libre + n - previo) + (deb ? ' en ' + cf.nombre : ' libres') : 'Lo que llegó a tu ' + cf.nombre + (deb ? '' : ' débito');
     } else if (tipo === 'pago_tarjeta') {
       txt = n > 0 ? (r.tarjeta.por_pagar - n + previo > 0 ? 'Quedarían ' + cdPesos(r.tarjeta.por_pagar - n + previo) + ' por pagar' : 'Quedas al corriente') : 'Pagar la tarjeta no cambia tu Libre';
     } else if (formActual.cuadrar && valorDe('clase') === 'cashback') {
       var cbS = saldoCashback(r, cfg), aTarjeta = valorDe('cbdest') !== 'debito';
       txt = n > 0 ? (aTarjeta ? 'La tarjeta deberá ' + cdPesos(n) + ' menos' : 'Entran ' + cdPesos(n) + ' a tu débito') + ': tu Libre sube'
-        : 'Tienes ≈ ' + cdPesos(cbS.porUsar) + ' por usar. El monto exacto está en DiDi › Cashback';
+        : 'Tienes ≈ ' + cdPesos(cbS.porUsar) + ' por usar. El monto exacto está en ' + nom() + ' › Cashback';
     } else if (formActual.cuadrar && valorDe('clase') !== 'cashback') {
       var esDeb = valorDe('clase') === 'debito', dif = diferenciaCuadre();
       var enC = $('#f-encorte') && $('#f-encorte').closest('.fila-switch');
       if (enC) enC.hidden = esDeb || !(dif > 0);
       if (isNaN(dif)) txt = 'Según Caudal: ' + cdPesos(esDeb ? estado.resumen.saldo_debito : estado.resumen.deuda_tarjeta);
+      else if (deb && dif) txt = dif > 0 ? 'Faltaban ' + cdPesos(dif) + ' en Caudal: el saldo sube' : 'Sobraban ' + cdPesos(-dif) + ' en Caudal: el saldo baja. ¿Faltó anotar una compra?';
       else if (!dif) txt = 'Ya cuadra. No hay nada que corregir.';
       else if (esDeb) txt = dif > 0 ? 'Faltaban ' + cdPesos(dif) + ' en Caudal: tu Libre sube' : 'Sobraban ' + cdPesos(-dif) + ' en Caudal: tu Libre baja. ¿Faltó anotar una compra?';
       else txt = dif > 0 ? 'La tarjeta debe ' + cdPesos(dif) + ' más: tu Libre baja' : 'La tarjeta debe ' + cdPesos(-dif) + ' menos: tu Libre sube';
     } else {
       var clase = valorDe('clase');
-      txt = clase === 'cashback' ? 'Anótalo cuando DiDi te deposite el cashback'
-        : clase === 'ajuste' ? 'El dinero que ya tenías en débito, o una diferencia'
+      txt = clase === 'cashback' ? 'Anótalo cuando ' + nom() + ' te deposite el cashback'
+        : clase === 'ajuste' ? (deb ? 'El dinero que ya tenías en ' + nom() + ', o una diferencia' : 'El dinero que ya tenías en débito, o una diferencia')
         : ($('#f-encorte') && $('#f-encorte').checked ? (cdDiasEntre(r.hoy, r.tarjeta.fecha_limite) < 0 ? 'Se suma al pago que venció el ' : 'Se suma al pago del ') + fecha(r.tarjeta.fecha_limite, false)
           : 'Entra en el próximo pago, antes del ' + fecha(limiteSiguiente(r), false));
     }
     nota.textContent = txt;
   }
 
+  /** La cuenta donde se va a anotar (la activa, o la que se eligió arriba de la hoja). */
+  function cuentaDelForm() {
+    var id = valorDe('cuenta') || (formActual && formActual.cuenta) || (estado && estado.cuenta.id);
+    return estado.cuentas.filter(function (c) { return c.id === id; })[0] || estado.cuenta;
+  }
+
+  /** Arriba de "Compra" y "Recibí dinero": en qué cuenta (empieza en la activa). */
+  function selectorCuentaForm() {
+    var seg = segmentado('f-cuenta', estado.cuentas.map(function (c) { return { v: c.id, t: c.nombre, punto: colorPunto(c) }; }), estado.cuenta.id, function () { actualizarNota(); });
+    seg.classList.add('seg-cuentas');
+    seg.setAttribute('aria-label', 'Cuenta');
+    return h('div', { class: 'hoja-seccion' }, [seg]);
+  }
+
   function abrirForm(tipo, mov, pre) {
     if (!estado) return;
     pre = pre || {};
-    formActual = { tipo: tipo, mov: mov || null };
+    formActual = { tipo: tipo, mov: mov || null, cuenta: estado.cuenta.id };
+    var deb = esDebito();
     teclado.txt = ''; teclado.negativo = false;
     var cuerpo = $('#hoja-cuerpo'); cuerpo.innerHTML = '';
     $('#hoja-error').hidden = true;
@@ -1260,9 +1577,10 @@
     borrarArmado = false;
     var cfg = estado.config, r = estado.resumen, titulo, monto = '';
 
+    if ((tipo === 'compra' || tipo === 'deposito') && varias()) cuerpo.appendChild(selectorCuentaForm());
     if (tipo === 'compra') {
       titulo = mov ? 'Editar compra' : 'Compra';
-      cuerpo.appendChild(h('div', { class: 'hoja-seccion' }, [segmentado('f-medio', [{ v: 'credito', t: 'Tarjeta de crédito' }, { v: 'debito', t: 'Débito' }], mov ? mov.medio : 'credito', actualizarNota)]));
+      cuerpo.appendChild(h('div', { class: 'hoja-seccion', id: 'f-medio-caja', hidden: deb }, [segmentado('f-medio', [{ v: 'credito', t: 'Tarjeta de crédito' }, { v: 'debito', t: 'Débito' }], mov ? mov.medio : 'credito', actualizarNota)]));
       cuerpo.appendChild(seccionMonto());
       cuerpo.appendChild(chipsCategoria(mov ? mov.categoria : cfg.categoria_default));
       if (!mov) { var lug = lugaresRecientes(); if (lug) cuerpo.appendChild(lug); }
@@ -1287,9 +1605,12 @@
       monto = mov ? mov.monto : r.tarjeta.por_pagar;
     } else if (!mov) {
       // Cuadrar: se escribe lo que dice DiDi y Caudal anota solo la diferencia.
-      titulo = 'Cuadrar con DiDi';
+      titulo = 'Cuadrar con ' + nom();
       formActual.cuadrar = true;
-      var selC = pre.clase === 'deuda' ? 'tarjeta' : pre.clase === 'cashback' && cbActivo() ? 'cashback' : 'debito';
+      var selC = deb ? 'debito' : pre.clase === 'deuda' ? 'tarjeta' : pre.clase === 'cashback' && cbActivo() ? 'cashback' : 'debito';
+      var preguntaDe = function (v) {
+        return v === 'debito' ? (deb ? '¿Cuánto ves hoy en ' + nom() + '?' : '¿Cuánto ves hoy en tu ' + nom() + ' débito?') : v === 'tarjeta' ? '¿Cuánto dice ' + nom() + ' que debe tu tarjeta?' : '¿Cuánto cashback usaste?';
+      };
       var pregunta = h('p', { class: 'hoja-pregunta', id: 'f-pregunta' });
       var limC = r.tarjeta.fecha_limite, vencC = cdDiasEntre(r.hoy, limC) < 0;
       var enCorteC = h('label', { class: 'fila-switch', html:
@@ -1298,27 +1619,27 @@
       enCorteC.querySelector('input').addEventListener('change', actualizarNota);
       var destino = h('div', { class: 'hoja-seccion cb-destino' }, [segmentado('f-cbdest', [{ v: 'tarjeta', t: 'En la tarjeta' }, { v: 'debito', t: 'A mi débito' }], (leer('caudal.cbDestino') || estado.config.cashback_destino) === 'debito' ? 'debito' : 'tarjeta', actualizarNota)]);
       var ponerClase = function (v) {
-        pregunta.textContent = v === 'debito' ? '¿Cuánto ves hoy en tu DiDi débito?' : v === 'tarjeta' ? '¿Cuánto dice DiDi que debe tu tarjeta?' : '¿Cuánto cashback usaste?';
+        pregunta.textContent = preguntaDe(v);
         destino.hidden = v !== 'cashback';
         enCorteC.hidden = true;
         teclado.txt = '';
         pintarMonto();
       };
-      cuerpo.appendChild(h('div', { class: 'hoja-seccion' }, [segmentado('f-clase', [{ v: 'debito', t: 'Débito' }, { v: 'tarjeta', t: 'Tarjeta' }].concat(cbActivo() ? [{ v: 'cashback', t: 'Cashback' }] : []), selC, ponerClase)]));
+      cuerpo.appendChild(h('div', { class: 'hoja-seccion', hidden: deb }, [segmentado('f-clase', [{ v: 'debito', t: 'Débito' }, { v: 'tarjeta', t: 'Tarjeta' }].concat(cbActivo() ? [{ v: 'cashback', t: 'Cashback' }] : []), selC, ponerClase)]));
       cuerpo.appendChild(pregunta);
       cuerpo.appendChild(seccionMonto());
       cuerpo.appendChild(destino);
       cuerpo.appendChild(detalles('Nota y fecha', [filaDetalle('descripcion', 'Nota', '', 'Opcional'), filaDetalle('fecha', 'Fecha', r.hoy, '', 'date'), enCorteC], false));
       enCorteC.hidden = true;
       destino.hidden = selC !== 'cashback';
-      pregunta.textContent = selC === 'debito' ? '¿Cuánto ves hoy en tu DiDi débito?' : selC === 'tarjeta' ? '¿Cuánto dice DiDi que debe tu tarjeta?' : '¿Cuánto cashback usaste?';
+      pregunta.textContent = preguntaDe(selC);
       monto = '';
     } else {
       titulo = 'Editar movimiento';
       var sel = pre.clase || (mov ? (mov.tipo === 'cashback' ? 'cashback' : (mov.medio === 'credito' ? 'deuda' : 'ajuste')) : 'cashback');
       var signo = h('div', { class: 'hoja-seccion', id: 'f-signo-caja' }, [segmentado('f-signo', [{ v: 'suma', t: 'Agregar' }, { v: 'resta', t: 'Quitar' }],
         mov && Number(mov.monto) < 0 ? 'resta' : 'suma', function (v) { teclado.negativo = v === 'resta'; pintarMonto(); })]);
-      cuerpo.appendChild(h('div', { class: 'hoja-seccion' }, [segmentado('f-clase', (cbActivo() || sel === 'cashback' ? [{ v: 'cashback', t: 'Cashback' }] : []).concat([{ v: 'ajuste', t: 'Saldo' }, { v: 'deuda', t: 'Deuda' }]), sel, function (v) {
+      cuerpo.appendChild(h('div', { class: 'hoja-seccion', hidden: deb && sel === 'ajuste' }, [segmentado('f-clase', (cbActivo() || sel === 'cashback' ? [{ v: 'cashback', t: 'Cashback' }] : []).concat([{ v: 'ajuste', t: 'Saldo' }]).concat(deb && sel !== 'deuda' ? [] : [{ v: 'deuda', t: 'Deuda' }]), sel, function (v) {
         signo.hidden = v === 'cashback';
         enCorte.hidden = v !== 'deuda';
         teclado.negativo = v !== 'cashback' && valorDe('signo') === 'resta';
@@ -1420,8 +1741,8 @@
     }
     else if (formActual.cuadrar && valorDe('clase') !== 'cashback') {
       var dif = diferenciaCuadre(), esDebito = valorDe('clase') === 'debito';
-      if (isNaN(dif)) { sacudir(); mostrarErrorForm('Escribe lo que ves en DiDi.'); return; }
-      if (!dif) { cerrarForm(); avisar('Ya cuadra con DiDi', 3500); return; }
+      if (isNaN(dif)) { sacudir(); mostrarErrorForm('Escribe lo que ves en ' + nom() + '.'); return; }
+      if (!dif) { cerrarForm(); avisar('Ya cuadra con ' + nom(), 3500); return; }
       mov = { tipo: 'ajuste', medio: esDebito ? 'debito' : 'credito', monto: (dif < 0 ? '-' : '') + Math.abs(dif).toFixed(2), fecha: valorDe('fecha'),
         descripcion: valorDe('descripcion') || (esDebito ? 'Cuadre de débito' : 'Cuadre de tarjeta') };
       if (!esDebito && dif > 0 && $('#f-encorte') && $('#f-encorte').checked && mov.fecha > estado.resumen.tarjeta.ultimo_corte) mov.fecha = estado.resumen.tarjeta.ultimo_corte;
@@ -1441,6 +1762,10 @@
 
   async function guardarMov(mov, n) {
     if (!(n > 0)) { sacudir(); mostrarErrorForm('Escribe cuánto fue.'); return; }
+    // En qué cuenta se anota: la elegida en la hoja (o la activa). Solo débito = siempre débito.
+    var cf = cuentaDelForm();
+    mov.cuenta = cf.id;
+    if (cf.tipo === 'debito' && mov.tipo === 'compra') mov.medio = 'debito';
     if (n > 1000000) { sacudir(); mostrarErrorForm('Ese monto parece demasiado grande. Revísalo.'); return; }
     $('#hoja-error').hidden = true;
     var btn = $('#hoja-guardar'); btn.disabled = true; btn.textContent = 'Guardando…';
@@ -1477,9 +1802,10 @@
   /* ===================== flujo ===================== */
 
   function recibir(res) {
-    estado = { resumen: res.resumen, movimientos: res.movimientos, config: res.config, campos: res.campos, _recibido: new Date().toISOString() };
-    if (!conexion().demo) guardar(LS.estado, JSON.stringify(estado));
+    crudo = { resumen: res.resumen, movimientos: res.movimientos, config: res.config, campos: res.campos, cuentas: res.cuentas, cuenta_activa: res.cuenta_activa, _recibido: new Date().toISOString() };
+    if (!conexion().demo) guardar(LS.estado, JSON.stringify(crudo));
     $('#banda-estado').hidden = true;
+    derivar();
     pintar();
   }
 
@@ -1527,6 +1853,8 @@
     });
     ponerTitulo();
     if (v !== 'ajustes') $('#btn-guardar-cfg').classList.remove('visible');
+    // Se salió de Ajustes sin guardar el color que estaba probando: regresa el de la cuenta.
+    if (v !== 'ajustes' && previaColor && estado) { previaColor = null; aplicarTema(estado.cuenta.color, true); pintarConfig(); }
     window.scrollTo(0, 0);
   }
 
@@ -1538,7 +1866,7 @@
     $('#info-conexion').textContent = c.demo ? 'Demostración' : 'Hoja de Google · ' + c.clave.slice(0, 4) + '••••';
     if (!c.demo) {
       var g = leer(LS.estado);
-      if (g) try { estado = JSON.parse(g); } catch (e) {}
+      if (g) try { crudo = JSON.parse(g); derivar(); } catch (e) { crudo = null; estado = null; }
     }
     if (estado) pintar(); else pintarEsqueleto();
     mostrarVista('inicio');
@@ -1563,7 +1891,7 @@
       iniciarApp();
     });
     $('#btn-demo').addEventListener('click', function () { guardar(LS.demo, '1'); iniciarApp(); });
-    $('#salir-demo').addEventListener('click', function () { guardar(LS.demo, null); guardar(LS.demoDatos, null); estado = null; if (conexion().clave) iniciarApp(); else mostrarConectar(); });
+    $('#salir-demo').addEventListener('click', function () { guardar(LS.demo, null); guardar(LS.demoDatos, null); guardar(LS.cuenta, null); estado = null; crudo = null; aplicarTema(CD_COLOR_BASE); if (conexion().clave) iniciarApp(); else mostrarConectar(); });
 
     // Luz bajo el dedo en las superficies de vidrio que se tocan.
     var apagar = function () { $$('.luz').forEach(function (x) { x.classList.remove('luz'); }); };
@@ -1613,7 +1941,7 @@
         setTimeout(function () { b.dataset.armado = ''; txt.textContent = 'Desconectar este teléfono'; }, 4000);
         return;
       }
-      [LS.api, LS.clave, LS.estado, LS.demo, LS.demoDatos].forEach(function (k) { guardar(k, null); });
+      [LS.api, LS.clave, LS.estado, LS.demo, LS.demoDatos, LS.cuenta, LS.tema].forEach(function (k) { guardar(k, null); });
       location.reload();
     });
     $('#btn-copiar-enlace').addEventListener('click', async function () {

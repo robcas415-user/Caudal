@@ -30,7 +30,7 @@ Widget Scriptable / Siri ─────────────────┘ 
    Google pedirá permisos: *Revisar permisos → tu cuenta → Configuración avanzada →
    Ir a Caudal (no seguro) → Permitir*. (Dice "no seguro" porque el script es tuyo y no
    está verificado por Google; es normal.)
-   Esto crea las pestañas **Movimientos** y **Config**, una **clave secreta** y el
+   Esto crea las pestañas **Movimientos**, **Config** y **Cuentas** (DiDi y Nu), una **clave secreta** y el
    recordatorio diario de las 8 am.
 5. **Implementar → Nueva implementación** → tipo ⚙️ **Aplicación web**:
    - Ejecutar como: **Yo**
@@ -116,3 +116,20 @@ En la app de tu mamá:
 | "La hoja no respondió bien" | La implementación no tiene acceso "Cualquier usuario", o falta implementar una *nueva versión* tras pegar código. |
 | Fechas raras / corte un día corrido | Zona horaria del proyecto de Apps Script (paso 1.3). |
 | Saldo de DiDi débito distinto al de la app | Falta anotar algo, o hubo una compra con débito que no se registró. Usa **Otro → Corregir saldo** con la diferencia. |
+
+
+## Actualizar a la versión con cuentas (DiDi + Nu)
+
+Si ya usabas Caudal, solo hay que poner el código nuevo en la hoja. No se pierde nada:
+
+1. En la hoja: **Extensiones → Apps Script**. Reemplaza todo el contenido de `Code.gs` y de
+   `Calculos.gs` por los de la carpeta `apps-script/` y guarda (💾).
+2. **Implementar → Administrar implementaciones** → ✏️ (editar) → *Versión*: **Nueva versión**
+   → **Implementar**. (Así la dirección `/exec` no cambia y el iPhone sigue conectado.)
+3. Abre la app una vez. En ese momento la hoja crea sola la pestaña **Cuentas** (DiDi con los
+   datos de su tarjeta que ya estaban en Config, y Nu como solo débito en morado) y agrega la
+   columna **cuenta** a Movimientos, marcando todo lo de antes como DiDi.
+
+La pestaña **Cuentas** se puede editar a mano: `tipo` es `credito` (tarjeta + débito, como
+DiDi) o `debito` (solo débito, como Nu), y `color` es el color de marca (`#RRGGBB`). Lo mismo
+se cambia desde la app en *Ajustes*, donde también se agregan cuentas.

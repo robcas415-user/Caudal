@@ -75,6 +75,34 @@ Para compras con tarjeta física, en efectivo desde débito, o si la automática
 
 Uso: "Oye Siri, **anotar gasto**".
 
+### Con varias cuentas (DiDi, Nu…): preguntar en cuál
+
+Sin cambiar nada, el atajo sigue anotando en la **primera cuenta** (DiDi). Para que pregunte
+la cuenta **solo cuando hay más de una**, agrega al principio del atajo:
+
+1. **Obtener contenido de la URL**:
+   ```
+   API?accion=cuentas&token=CLAVE&formato=texto
+   ```
+   (Devuelve los nombres de las cuentas, uno por renglón.)
+2. **Dividir texto** → *Contenido de la URL* → por **Saltos de línea**.
+3. **Contar** → *Elementos* de *Texto dividido*.
+4. **Si** → *Cuenta* → **es mayor que** → `1`
+   - dentro: **Elegir de la lista** → *Texto dividido* → Pregunta: "¿En qué cuenta?"
+     → **Definir variable** `Cuenta` → *Elemento elegido*
+   - **De lo contrario**: **Obtener elemento de la lista** → *Primer elemento* de *Texto dividido*
+     → **Definir variable** `Cuenta` → *Elemento de la lista*
+   - *Finalizar si*
+5. En el **Texto** de la URL, agrega al final `&cuenta=` y la variable **Cuenta**:
+
+   ```
+   API?accion=agregar&token=CLAVE&origen=atajo&formato=texto&monto=[Entrada proporcionada]&medio=[Resultado del menú]&cuenta=[Cuenta]
+   ```
+
+En una cuenta de **solo débito** (como Nu) la compra siempre se anota como débito, aunque el
+menú diga "Tarjeta de crédito", así que no hace falta cambiar la pregunta de con qué pagó.
+La notificación dice en qué cuenta quedó: "Anotado en Nu: $200.00. Te quedan $1,300.00 en Nu".
+
 ## 3. "¿Cuánto tengo libre?" (Siri)
 
 1. Nuevo atajo, nómbralo **Cuánto tengo libre**.
@@ -119,11 +147,12 @@ API?accion=agregar&token=CLAVE&tipo=deposito&nuevo_periodo=si&origen=atajo&forma
 
 | Parámetro | Valores |
 |---|---|
-| `accion` | `estado`, `resumen`, `agregar`, `aviso` |
+| `accion` | `estado`, `resumen`, `agregar`, `aviso`, `cuentas` |
+| `cuenta` | id o nombre de la cuenta (`didi`, `Nu`…) o `activa` (la última elegida en la app). Sin `cuenta` = la primera |
 | `token` | la clave |
 | `formato` | `texto` para respuesta en texto plano (si no, JSON) |
 | `tipo` | `compra` (por defecto), `deposito`, `pago_tarjeta`, `cashback`, `ajuste` |
-| `medio` | `credito` (por defecto) o `debito` |
+| `medio` | `credito` (por defecto) o `debito` (en cuentas de solo débito siempre `debito`) |
 | `monto` | acepta `$1,234.50`, `1234.5`, `89,90`… |
 | `comercio` / `descripcion` | texto libre |
 | `categoria` | una de `categorias` (si no, `categoria_default`) |

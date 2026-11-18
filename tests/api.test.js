@@ -10,12 +10,16 @@ function crearEntorno() {
   class Hoja {
     constructor(n) { this.n = n; this.d = []; }
     getLastRow() { return this.d.length; }
+    getLastColumn() { return Math.max(0, ...Array.from(this.d, f => (f || []).length)); }
+    getMaxRows() { return 1000; } getMaxColumns() { return 26; } insertColumnsAfter() {}
+    insertRowBefore(i) { this.d.splice(i - 1, 0, []); }
     getRange(a, b, c, d) {
       if (typeof a === 'string') return { setNumberFormat() { return this; } };
       const self = this, fila = a - 1, col = b - 1, nf = c || 1, nc = d || 1;
       return {
         setValues(v) { v.forEach((r, i) => { self.d[fila + i] = self.d[fila + i] || []; r.forEach((x, j) => { self.d[fila + i][col + j] = x; }); }); return this; },
-        setValue(x) { self.d[fila][col] = x; return this; },
+        setValue(x) { self.d[fila] = self.d[fila] || []; self.d[fila][col] = x; return this; },
+        setNumberFormat() { return this; },
         getValues() { return Array.from({ length: nf }, (_, i) => Array.from({ length: nc }, (_, j) => (self.d[fila + i] || [])[col + j] ?? '')); },
         setFontWeight() { return this; }
       };
@@ -70,7 +74,8 @@ test('instalar, clave, anotar desde atajo y app, editar, borrar, config', () => 
   assert.strictEqual(r.resumen.periodo.recibido, 5000);
 
   const txt = get(ctx, { token, accion: 'agregar', monto: 'MX$1,234.50', comercio: 'Walmart Express', medio: 'credito', origen: 'wallet', formato: 'texto' });
-  assert.strictEqual(txt, 'Anotado: $1,234.50 en Walmart Express (tarjeta). Te quedan libres $3,765.50.');
+  // Con dos cuentas (DiDi y Nu) la notificación dice en cuál se anotó.
+  assert.strictEqual(txt, 'Anotado en DiDi: $1,234.50 en Walmart Express (tarjeta). Te quedan libres $3,765.50.');
   // duplicado de Wallet
   const dup = get(ctx, { token, accion: 'agregar', monto: '$1,234.50', comercio: 'Walmart Express', origen: 'wallet' });
   assert.strictEqual(dup.duplicado, true);
@@ -97,7 +102,7 @@ test('instalar, clave, anotar desde atajo y app, editar, borrar, config', () => 
   const ajuste = post(ctx, { token, accion: 'agregar', mov: { tipo: 'ajuste', monto: '-200', medio: 'debito' } });
   assert.strictEqual(ajuste.resumen.libre, 4800);
 
-  assert.strictEqual(get(ctx, { token, accion: 'resumen', formato: 'texto' }), 'Libre: $4,800.00.');
+  assert.strictEqual(get(ctx, { token, accion: 'resumen', formato: 'texto' }), 'DiDi. Libre: $4,800.00.');
   assert.strictEqual(get(ctx, { token, accion: 'aviso', formato: 'texto' }), '');
   assert.match(get(ctx, { token, accion: 'agregar', monto: '' }).error, /monto/);
 });

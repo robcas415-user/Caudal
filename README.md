@@ -17,12 +17,21 @@ Todo es configurable (corte, día límite o días para pagar, % y tope de cashba
 con cashback, monto y frecuencia del dinero recibido, recordatorios): desde la app en
 *Ajustes* o en la pestaña *Config* de la hoja.
 
+## Varias cuentas
+
+Además de DiDi se pueden llevar otras cuentas (por ejemplo **Nu**, solo débito). Cada cuenta
+tiene su propio saldo y movimientos (lo de una no cambia el Libre de otra), su tipo
+(*tarjeta y débito* o *solo débito*) y su color de marca: al cambiar de cuenta arriba en Inicio
+toda la app toma ese color. La paleta se genera girando el tono de la paleta verde en OKLCH
+(misma luminosidad, mismo diseño) y se revisa el contraste de los textos; con el verde de DiDi
+la app queda exactamente igual. Ver `docs/INSTALACION.md` para actualizar la hoja.
+
 ## Piezas
 
 | Carpeta | Qué es |
 |---|---|
 | `apps-script/` | `Code.gs` (API web + recordatorios por correo) y `Calculos.gs` (toda la lógica). Va pegado en la hoja de Google. |
-| `web/` | App web instalable (PWA) en español, letra grande. Se publica en Netlify. `web/calculos.js` es copia de `Calculos.gs` (modo demo). |
+| `web/` | App web instalable (PWA) en español, letra grande. Se publica en GitHub Pages. `web/calculos.js` es copia de `Calculos.gs` (modo demo). |
 | `scriptable/` | Widget para la pantalla de inicio del iPhone. |
 | `docs/` | [Instalación](docs/INSTALACION.md) y [Atajos del iPhone](docs/ATAJOS.md). |
 | `tests/` | Pruebas de los cálculos (`npm test`). |
