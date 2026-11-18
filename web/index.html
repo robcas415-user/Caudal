@@ -17,8 +17,21 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="stylesheet" href="styles.css">
   <script>
-    /* Color de la cuenta elegida: se pone antes de pintar para que no se vea el verde un instante. */
-    try { var t = JSON.parse(localStorage.getItem('caudal_tema') || 'null'); if (t && t.css) { var st = document.createElement('style'); st.id = 'tema-css'; st.textContent = t.css; document.head.appendChild(st); document.querySelector('link[rel="stylesheet"]').disabled = true; } } catch (e) {}
+    /* Color de la cuenta elegida: se pone antes de pintar para que no se vea el verde un instante.
+       Se busca el color de la cuenta activa (último estado guardado) y su hoja de estilos ya armada. */
+    (function () { try {
+      var L = localStorage, css = null, est = JSON.parse(L.getItem('caudal_estado') || 'null'), mapa = JSON.parse(L.getItem('caudal_temas') || 'null');
+      if (est && est.cuentas && est.cuentas.length && mapa) {
+        var idc = L.getItem('caudal_cuenta') || est.cuenta_activa;
+        var cu = est.cuentas.filter(function (x) { return x.id === idc; })[0] || est.cuentas[0];
+        var k = String(cu.color || '').toLowerCase();
+        if (k in mapa) css = mapa[k];
+        else css = null;
+        if (css === '') css = false;   // verde de siempre: no se toca nada
+      }
+      if (css == null) { var t = JSON.parse(L.getItem('caudal_tema') || 'null'); css = t && t.css; }
+      if (css) { var st = document.createElement('style'); st.id = 'tema-css'; st.textContent = css; document.head.appendChild(st); document.querySelector('link[rel="stylesheet"]').disabled = true; }
+    } catch (e) {} })();
   </script>
 </head>
 <body>
