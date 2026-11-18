@@ -407,6 +407,25 @@ function ladoChico() {
   return t[w] || 158;
 }
 
+/** Ícono de "última actualización": la flecha circular de la app (línea fina, puntas redondas), dibujada a mano
+ *  para no depender de los símbolos del sistema. Mismo trazo que `i-refresh` de la app (cuadrícula de 24). */
+function iconoActualizar(color, lado) {
+  const k = 6, dc = new DrawContext();
+  dc.size = new Size(24 * k, 24 * k); dc.opaque = false; dc.respectScreenScale = true;
+  const P = (x, y) => new Point(x * k, y * k);
+  const arco = new Path();
+  for (let g = 0; g <= 315; g += 5) {
+    const r = g * Math.PI / 180, pt = P(12 + 7.5 * Math.cos(r), 12 + 7.5 * Math.sin(r));
+    if (g === 0) arco.move(pt); else arco.addLine(pt);
+  }
+  const punta = new Path();
+  punta.move(P(19.5, 4)); punta.addLine(P(19.5, 8.5)); punta.addLine(P(15, 8.5));
+  dc.setStrokeColor(color); dc.setLineWidth(2.1 * k);
+  dc.addPath(arco); dc.strokePath();
+  dc.addPath(punta); dc.strokePath();
+  return dc.getImage();
+}
+
 function horaTexto(t) {
   const df = new DateFormatter(); df.locale = 'es_MX'; df.dateFormat = 'h:mm a';
   return df.string(new Date(t)).replace('a. m.', 'a.m.').replace('p. m.', 'p.m.');
@@ -432,8 +451,8 @@ function variasFichas(datos, fam) {
   // Hora de la última actualización, centrada y discreta, para saber si las cifras están al día.
   const fila = w.addStack(); fila.centerAlignContent(); fila.size = new Size(0, pie - 2);
   fila.addSpacer();
-  const ic = SFSymbol.named(datos.viejo ? 'wifi.slash' : 'arrow.clockwise');
-  if (ic) { ic.applyFont(Font.semiboldSystemFont(7)); const im = fila.addImage(ic.image); im.tintColor = BLANCO(0.5); im.imageSize = new Size(8, 8); fila.addSpacer(3); }
+  const im = fila.addImage(iconoActualizar(datos.viejo ? col('#d6e38f', 0.9) : BLANCO(0.5)));
+  im.imageSize = new Size(9, 9); fila.addSpacer(3);
   texto(fila, horaTexto(datos.t) + (datos.viejo ? ' · sin conexión' : '') + (!chico && datos.total > n ? ' · +' + (datos.total - n) + ' más' : ''),
     Font.mediumSystemFont(8), datos.viejo ? col('#d6e38f', 0.9) : BLANCO(0.5));
   fila.addSpacer();
