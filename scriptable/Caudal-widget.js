@@ -63,7 +63,7 @@ function plazo(r) {
 
 const CUENTA = String((typeof args !== 'undefined' && args.widgetParameter) || 'activa').trim();
 
-const VERSION = 'v5.1';   // si el widget muestra otra, pegaste un archivo distinto
+const VERSION = 'v5.2';   // si el widget muestra otra, pegaste un archivo distinto
 
 /** Revisa que las dos líneas del inicio estén llenas; si no, dice cuál falta. */
 function revisarDatos() {
@@ -351,22 +351,14 @@ function fondoVarias(ests) {
   return g;
 }
 
-/** Fondo de la ficha: del color de la cuenta con luz arriba y brillo de vidrio (iOS no deja desenfocar de verdad). */
-function cristal(ancho, alto, F) {
-  const dc = new DrawContext();
-  dc.size = new Size(ancho, alto); dc.opaque = false; dc.respectScreenScale = true;
-  const pasos = 40;
-  for (let i = 0; i < pasos; i++) {   // degradado de arriba hacia abajo
-    dc.setFillColor(new Color(mezcla(F.arriba, F.abajo, i / (pasos - 1))));
-    dc.fillRect(new Rect(0, (alto / pasos) * i, ancho, alto / pasos + 0.6));
-  }
-  const franjas = 22, zona = alto * 0.55;
-  for (let i = 0; i < franjas; i++) {   // brillo de vidrio en la parte de arriba
-    dc.setFillColor(new Color('#ffffff', 0.12 * Math.pow(1 - i / franjas, 2)));
-    dc.fillRect(new Rect(0, (zona / franjas) * i, ancho, zona / franjas + 0.5));
-  }
-  dc.setFillColor(new Color('#ffffff', 0.35)); dc.fillRect(new Rect(0, 0, ancho, 1));   // filo de luz arriba
-  return dc.getImage();
+/** Fondo de la ficha: degradado del color de la cuenta con luz arriba (brillo de vidrio).
+ *  Es un degradado y no una imagen: así siempre cubre la ficha exacta, mida lo que mida en ese iPhone. */
+function cristal(F) {
+  const g = new LinearGradient();
+  g.colors = [mezcla(F.arriba, '#ffffff', 0.16), F.arriba, F.abajo].map(h => new Color(h));
+  g.locations = [0, 0.4, 1];
+  g.startPoint = new Point(0, 0); g.endPoint = new Point(0, 1);
+  return g;
 }
 
 /** Mezcla de dos colores hex (t de 0 a 1). */
@@ -429,11 +421,11 @@ function indicadoresDe(d) {
 }
 
 /** Marco de la ficha: del color de la cuenta, con filo de luz. Sin tamaño fijo: se estira a lo que mida el widget. */
-function marco(w, est, alto, ancho, radio, padH, padV) {
+function marco(w, est, radio, padH, padV) {
   const f = w.addStack(); f.layoutHorizontally(); f.centerAlignContent();
   f.cornerRadius = radio; f.setPadding(padV, padH, padV, padH);
-  f.backgroundImage = cristal(ancho, alto, est.ficha);   // la imagen se estira al tamaño real de la ficha
-  f.borderWidth = 1; f.borderColor = col(est.ficha.filo, 0.55);
+  f.backgroundGradient = cristal(est.ficha);
+  f.borderWidth = MEDIR ? 2 : 1; f.borderColor = MEDIR ? col('#ff2d55') : col(est.ficha.filo, 0.55);
   return f;
 }
 
@@ -448,9 +440,9 @@ function cifra(stack, n, tam) {
 }
 
 /** Ficha del widget chico (cuadrado): nombre y estado, cifra grande, y el dato de apoyo a todo lo ancho. */
-function fichaChica(w, d, est, alto, ancho) {
+function fichaChica(w, d, est) {
   const r = d.r, nom = d.cuenta ? d.cuenta.nombre : '';
-  const f = marco(w, est, alto, ancho, RADIO_FICHA, 9, 5);
+  const f = marco(w, est, RADIO_FICHA, 9, 5);
   // Sin anchos ni altos fijos: cada fila lleva un espaciador a lo ancho y la ficha se estira a lo alto, así la
   // ficha llena el widget mida lo que mida en ese iPhone. Los textos quedan centrados a lo alto dentro de la ficha.
   const c = f.addStack(); c.layoutVertically();
@@ -478,9 +470,9 @@ function fichaChica(w, d, est, alto, ancho) {
 }
 
 /** Ficha del widget mediano (ancho): cifra a la izquierda, dos indicadores a la derecha. */
-function fichaMediana(w, d, est, alto, ancho) {
+function fichaMediana(w, d, est) {
   const r = d.r, nom = d.cuenta ? d.cuenta.nombre : '';
-  const f = marco(w, est, alto, ancho, RADIO_FICHA, 13, 7);
+  const f = marco(w, est, RADIO_FICHA, 13, 7);
   const izq = f.addStack(); izq.layoutVertically(); izq.size = new Size(100, 0);   // ancho fijo: el estado queda alineado en todas las fichas
   const l1 = izq.addStack(); l1.centerAlignContent();
   texto(l1, nom, Font.boldSystemFont(12), BLANCO(), { minimumScaleFactor: 0.7 });
@@ -497,13 +489,6 @@ function fichaMediana(w, d, est, alto, ancho) {
     indicador(f, x[0], x[1], x[2], x[3], 80);
   });
   estirarAlto(f);
-}
-
-/** Alto del widget chico según el iPhone (en puntos), para que las dos fichas quepan sin recortarse. */
-function ladoChico() {
-  const t = { 320: 141, 375: 148, 390: 158, 393: 158, 414: 169, 428: 170, 430: 170 };
-  let w = 390; try { w = Device.screenSize().width; } catch (e) {}
-  return t[w] || 158;
 }
 
 /** Ícono de "última actualización": la flecha circular de la app (línea fina, puntas redondas), dibujada a mano
@@ -530,8 +515,13 @@ function horaTexto(t) {
   return df.string(new Date(t)).replace('a. m.', 'a.m.').replace('p. m.', 'p.m.');
 }
 
-// Márgenes iguales en los cuatro lados y esquinas concéntricas: radio de la ficha = radio del widget (~22) − margen.
-const MARGEN = 8, RADIO_FICHA = 14;
+// Guía de Apple (HIG, Widgets): margen estándar 16 pt; 11 pt para agrupar contenido en formas con fondo.
+// Aquí las fichas son esas formas: 10 pt alrededor (casi los 11 de Apple, para que quepan dos cuentas en el chico).
+// Esquinas concéntricas: radio de la ficha = radio del widget (~22 pt) − margen.
+const MARGEN = 10, RADIO_FICHA = 12;
+// Modo para medir en el iPhone real: Parameter del widget = "medir". Bordes rojos en las fichas y,
+// abajo, el tamaño de pantalla que reporta el iPhone y la versión del script.
+const MEDIR = CUENTA.toLowerCase() === 'medir';
 
 function variasFichas(datos, fam) {
   const w = new ListWidget();
@@ -539,17 +529,15 @@ function variasFichas(datos, fam) {
   const ests = datos.lista.map(estadoDe);
   w.backgroundGradient = fondoVarias(ests);
   const chico = fam === 'small';
-  const lado = ladoChico(), n = datos.lista.length;
+  const n = datos.lista.length;
   const gap = 5;
   // Abajo un poco menos: la línea de la hora ya trae aire propio, así se ve el mismo margen en los cuatro lados.
   w.setPadding(MARGEN, MARGEN, MARGEN - 2, MARGEN);
-  // Las fichas NO tienen alto ni ancho fijos: se reparten todo el espacio del widget (el tamaño real cambia
-  // según el iPhone y la versión de iOS). Este tamaño solo sirve para dibujar la imagen del fondo de la ficha.
-  const alto = chico ? Math.floor((lado - 2 * MARGEN - 16 - gap * (n - 1)) / n) : 60;
-  const ancho = chico ? lado - 2 * MARGEN : 322;
+  // Nada de medidas supuestas: las fichas no tienen alto ni ancho fijos y se reparten todo el espacio del widget
+  // (el tamaño real cambia según el modelo de iPhone, el zoom de pantalla y la versión de iOS).
   datos.lista.forEach((d, i) => {
     if (i > 0) w.addSpacer(gap);
-    (chico ? fichaChica : fichaMediana)(w, d, ests[i], alto, ancho);
+    (chico ? fichaChica : fichaMediana)(w, d, ests[i]);
   });
   w.addSpacer(4);
   // Hora de la última actualización, centrada y pegada a las fichas, para saber si las cifras están al día.
@@ -560,7 +548,10 @@ function variasFichas(datos, fam) {
   const cuadro = fila.addStack(); cuadro.size = new Size(9, 12); cuadro.centerAlignContent();
   const im = cuadro.addImage(iconoActualizar(tono));
   im.imageSize = new Size(9, 9); fila.addSpacer(3);
-  texto(fila, horaTexto(datos.t) + (datos.viejo ? ' · sin conexión' : '') + (!chico && datos.total > n ? ' · +' + (datos.total - n) + ' más' : ''),
+  let pie = horaTexto(datos.t);
+  if (MEDIR) { let sz = { width: 0, height: 0 }; try { sz = Device.screenSize(); } catch (e) {}
+    pie = Math.round(sz.width) + '×' + Math.round(sz.height) + ' · ' + fam + ' · ' + VERSION; }
+  texto(fila, pie + (datos.viejo ? ' · sin conexión' : '') + (!chico && datos.total > n ? ' · +' + (datos.total - n) + ' más' : ''),
     Font.semiboldSystemFont(9), tono);
   fila.addSpacer();
   return w;
@@ -583,7 +574,7 @@ function abrir(w) {
 async function crear() {
   const fam0 = config.widgetFamily || 'medium';
   // Sin parámetro, en mediano o grande: todas las cuentas en un solo widget.
-  if ((CUENTA === 'activa' || CUENTA.toLowerCase() === 'todas') && (fam0 === 'small' || fam0 === 'medium' || fam0 === 'large')) {
+  if ((CUENTA === 'activa' || CUENTA.toLowerCase() === 'todas' || MEDIR) && (fam0 === 'small' || fam0 === 'medium' || fam0 === 'large')) {
     const todas = await cargarTodas(fam0);
     if (!todas.error && todas.lista.length > 1) return abrir(variasFichas(todas, fam0));
   }
