@@ -63,7 +63,7 @@ function plazo(r) {
 
 const CUENTA = String((typeof args !== 'undefined' && args.widgetParameter) || 'activa').trim();
 
-const VERSION = 'v5';   // si el widget muestra otra, pegaste un archivo distinto
+const VERSION = 'v5.1';   // si el widget muestra otra, pegaste un archivo distinto
 
 /** Revisa que las dos líneas del inicio estén llenas; si no, dice cuál falta. */
 function revisarDatos() {
@@ -428,30 +428,39 @@ function indicadoresDe(d) {
   return lista;
 }
 
-/** Marco de la ficha: del color de la cuenta, con filo de luz. */
+/** Marco de la ficha: del color de la cuenta, con filo de luz. Sin tamaño fijo: se estira a lo que mida el widget. */
 function marco(w, est, alto, ancho, radio, padH, padV) {
   const f = w.addStack(); f.layoutHorizontally(); f.centerAlignContent();
-  f.size = new Size(0, alto); f.cornerRadius = radio; f.setPadding(padV, padH, padV, padH);
-  f.backgroundImage = cristal(ancho, alto, est.ficha);
+  f.cornerRadius = radio; f.setPadding(padV, padH, padV, padH);
+  f.backgroundImage = cristal(ancho, alto, est.ficha);   // la imagen se estira al tamaño real de la ficha
   f.borderWidth = 1; f.borderColor = col(est.ficha.filo, 0.55);
   return f;
+}
+
+/** Hace que la ficha crezca a lo alto para llenar el widget, sin meter espaciadores flexibles entre los textos
+ *  (si los hay, iOS reparte el alto entre ellos y la cifra grande y encoge la cifra de más). */
+function estirarAlto(f) { const e = f.addStack(); e.layoutVertically(); e.addSpacer(); }
+
+/** Cifra grande. Solo se encoge si de verdad no cabe (widget muy chico o cifra muy larga). */
+function cifra(stack, n, tam) {
+  const s = sinCentavos(n);
+  return texto(stack, s, Font.boldSystemFont(s.length > 7 ? Math.round(tam * 0.85) : tam), BLANCO(), { minimumScaleFactor: 0.7 });
 }
 
 /** Ficha del widget chico (cuadrado): nombre y estado, cifra grande, y el dato de apoyo a todo lo ancho. */
 function fichaChica(w, d, est, alto, ancho) {
   const r = d.r, nom = d.cuenta ? d.cuenta.nombre : '';
-  const padH = 9;
-  const f = marco(w, est, alto, ancho, 15, padH, 5);
-  // Columna de ancho fijo (el de la ficha por dentro): cada fila llena el ancho, el estado y el valor
-  // de apoyo quedan pegados al borde derecho, igual en todas las fichas.
-  const c = f.addStack(); c.layoutVertically(); c.size = new Size(ancho - 2 * padH - 2, 0);
+  const f = marco(w, est, alto, ancho, RADIO_FICHA, 9, 5);
+  // Sin anchos ni altos fijos: cada fila lleva un espaciador a lo ancho y la ficha se estira a lo alto, así la
+  // ficha llena el widget mida lo que mida en ese iPhone. Los textos quedan centrados a lo alto dentro de la ficha.
+  const c = f.addStack(); c.layoutVertically();
   const l1 = c.addStack(); l1.centerAlignContent();
   texto(l1, nom, Font.boldSystemFont(12), BLANCO(), { minimumScaleFactor: 0.7 });
   l1.addSpacer();
   pildora(l1, est, 9);
-  c.addSpacer();
-  monto(c, r.libre, 25, false);
-  c.addSpacer();
+  c.addSpacer(1);
+  const l2 = c.addStack(); cifra(l2, r.libre, 26); l2.addSpacer();
+  c.addSpacer(1);
   const l3 = c.addStack(); l3.centerAlignContent();
   if (r.tipo === 'debito') {
     texto(l3, 'Gastado este mes', Font.mediumSystemFont(10), BLANCO(0.85), { minimumScaleFactor: 0.7 });
@@ -465,29 +474,30 @@ function fichaChica(w, d, est, alto, ancho) {
     l3.addSpacer();
     texto(l3, t.valor, Font.boldSystemFont(12), t.color, { minimumScaleFactor: 0.6 });
   }
+  estirarAlto(f);
 }
 
 /** Ficha del widget mediano (ancho): cifra a la izquierda, dos indicadores a la derecha. */
 function fichaMediana(w, d, est, alto, ancho) {
   const r = d.r, nom = d.cuenta ? d.cuenta.nombre : '';
-  const f = marco(w, est, alto, ancho, 16, 13, 6);
+  const f = marco(w, est, alto, ancho, RADIO_FICHA, 13, 7);
   const izq = f.addStack(); izq.layoutVertically(); izq.size = new Size(100, 0);   // ancho fijo: el estado queda alineado en todas las fichas
   const l1 = izq.addStack(); l1.centerAlignContent();
   texto(l1, nom, Font.boldSystemFont(12), BLANCO(), { minimumScaleFactor: 0.7 });
   l1.addSpacer();
   pildora(l1, est, 9);
   izq.addSpacer(2);
-  monto(izq, r.libre, 26, false);
+  cifra(izq, r.libre, 26);
   f.addSpacer();
   const ind = indicadoresDe(d);
   ind.forEach((x) => {
     f.addSpacer(7);
-    const sep = f.addStack(); sep.backgroundColor = BLANCO(0.3); sep.size = new Size(1, alto - 24);
+    const sep = f.addStack(); sep.backgroundColor = BLANCO(0.3); sep.size = new Size(1, 32);
     f.addSpacer(7);
     indicador(f, x[0], x[1], x[2], x[3], 80);
   });
+  estirarAlto(f);
 }
-
 
 /** Alto del widget chico según el iPhone (en puntos), para que las dos fichas quepan sin recortarse. */
 function ladoChico() {
@@ -520,6 +530,9 @@ function horaTexto(t) {
   return df.string(new Date(t)).replace('a. m.', 'a.m.').replace('p. m.', 'p.m.');
 }
 
+// Márgenes iguales en los cuatro lados y esquinas concéntricas: radio de la ficha = radio del widget (~22) − margen.
+const MARGEN = 8, RADIO_FICHA = 14;
+
 function variasFichas(datos, fam) {
   const w = new ListWidget();
   w.refreshAfterDate = new Date(Date.now() + 5 * 60 * 1000);
@@ -527,18 +540,19 @@ function variasFichas(datos, fam) {
   w.backgroundGradient = fondoVarias(ests);
   const chico = fam === 'small';
   const lado = ladoChico(), n = datos.lista.length;
-  // Márgenes delgados: las fichas llenan el widget y el fondo queda como un filo, no como un marco.
-  const gap = 4, pie = 13, pad = 6;
-  w.setPadding(pad, pad, pad - 2, pad);
-  // El alto de cada ficha sale de lo que queda (chico) o es fijo (mediano y grande).
-  const alto = chico ? Math.floor((lado - pad * 2 + 2 - pie - gap * (n - 1)) / n) : fam === 'large' ? 60 : 64;
-  const ancho = chico ? lado - pad * 2 : 318;
+  const gap = 5;
+  // Abajo un poco menos: la línea de la hora ya trae aire propio, así se ve el mismo margen en los cuatro lados.
+  w.setPadding(MARGEN, MARGEN, MARGEN - 2, MARGEN);
+  // Las fichas NO tienen alto ni ancho fijos: se reparten todo el espacio del widget (el tamaño real cambia
+  // según el iPhone y la versión de iOS). Este tamaño solo sirve para dibujar la imagen del fondo de la ficha.
+  const alto = chico ? Math.floor((lado - 2 * MARGEN - 16 - gap * (n - 1)) / n) : 60;
+  const ancho = chico ? lado - 2 * MARGEN : 322;
   datos.lista.forEach((d, i) => {
     if (i > 0) w.addSpacer(gap);
     (chico ? fichaChica : fichaMediana)(w, d, ests[i], alto, ancho);
   });
-  w.addSpacer();
-  // Hora de la última actualización, centrada, para saber si las cifras están al día.
+  w.addSpacer(4);
+  // Hora de la última actualización, centrada y pegada a las fichas, para saber si las cifras están al día.
   const tono = datos.viejo ? col(URGENTE, 0.95) : BLANCO(0.78);
   const fila = w.addStack(); fila.centerAlignContent(); fila.size = new Size(0, 12);   // alto fijo: ícono y hora se centran sobre la misma línea
   fila.addSpacer();
@@ -551,7 +565,6 @@ function variasFichas(datos, fam) {
   fila.addSpacer();
   return w;
 }
-
 
 let DATOS = null;
 /** Hora de la última actualización: así se sabe si las cifras están al día. */
