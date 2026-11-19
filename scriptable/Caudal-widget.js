@@ -61,9 +61,29 @@ function plazo(r) {
   return 'en ' + d + ' días';
 }
 
+const VERSION = 'v4.1';   // si el widget muestra otra, pegaste un archivo distinto
+
+/** Revisa que las dos líneas del inicio estén llenas; si no, dice cuál falta. */
+function revisarDatos() {
+  if (API.indexOf('http') !== 0) return 'Falta pegar la dirección de la API (línea 9 del script, termina en /exec).';
+  if (!CLAVE || CLAVE.indexOf('PEGA_AQUI') === 0) return 'Falta pegar la clave (línea 10 del script).';
+  return '';
+}
+
+/** Explica en español por qué no cargó (en vez de un "no se pudo cargar" mudo). */
+function motivo(e) {
+  const m = String((e && e.message) || e || '');
+  if (/JSON|parse|unexpected|<html|<!doctype/i.test(m)) return 'La hoja no respondió con datos. Revisa que la implementación sea "Cualquier usuario" y que la dirección termine en /exec.';
+  if (/clave|token/i.test(m)) return 'La clave no es correcta. Vuelve a copiarla del menú Caudal de la hoja.';
+  if (/offline|connect|internet|network|conexi|timed out|tiempo/i.test(m)) return 'Sin conexión a internet.';
+  return m.slice(0, 120) || 'Error desconocido.';
+}
+
 const CUENTA = String((typeof args !== 'undefined' && args.widgetParameter) || 'activa').trim();
 
 async function cargar() {
+  const falta = revisarDatos();
+  if (falta) return { error: falta };
   const url = API + '?accion=resumen&token=' + encodeURIComponent(CLAVE) + '&cuenta=' + encodeURIComponent(CUENTA);
   const fm = FileManager.local();
   const cache = fm.joinPath(fm.documentsDirectory(), 'caudal-cache-' + CUENTA.toLowerCase().replace(/[^a-z0-9]/g, '') + '.json');
@@ -80,7 +100,7 @@ async function cargar() {
       const c = JSON.parse(fm.readString(cache));
       return Object.assign(c, { viejo: true });
     }
-    return { error: String(e.message || e) };
+    return { error: motivo(e) };
   }
 }
 
@@ -262,7 +282,7 @@ async function cargarTodas(familia) {
     return Object.assign(d, { viejo: false });
   } catch (e) {
     if (fm.fileExists(cache)) return Object.assign(JSON.parse(fm.readString(cache)), { viejo: true });
-    return { error: String(e.message || e) };
+    return { error: motivo(e) };
   }
 }
 
@@ -493,7 +513,12 @@ async function crear() {
 
   if (datos.error) {
     if (fam.indexOf('accessory') !== 0) w.backgroundColor = new Color('#0b100e');
-    texto(w, fam === 'accessoryInline' ? 'Caudal sin conexión' : 'Caudal: no se pudo cargar', Font.semiboldSystemFont(13), BLANCO(), { lineLimit: 2 });
+    if (fam === 'accessoryInline') { w.addText('Caudal sin conexión'); return w; }
+    texto(w, 'Caudal: no se pudo cargar', Font.semiboldSystemFont(13), BLANCO(), { lineLimit: 2 });
+    w.addSpacer(4);
+    texto(w, String(datos.error), Font.mediumSystemFont(10), BLANCO(0.75), { lineLimit: 6 });
+    w.addSpacer(4);
+    texto(w, 'Caudal ' + VERSION, Font.mediumSystemFont(8), BLANCO(0.4));
     return w;
   }
   const r = datos.r;

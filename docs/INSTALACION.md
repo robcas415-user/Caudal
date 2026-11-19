@@ -105,6 +105,11 @@ En la app de tu mamá:
   - **Con parámetro** (`DiDi`, `Nu`…): solo esa cuenta, chico o mediano.
   - Cómo actualizarlo: en Scriptable abre el script, borra todo, pega el archivo nuevo y vuelve a poner
     `API` y `CLAVE`. El widget de la pantalla de inicio se actualiza solo.
+  - Si el widget dice «Caudal: no se pudo cargar», ahora escribe debajo el motivo (falta la dirección o la clave,
+    sin conexión, la hoja no respondió…) y la versión del script (`Caudal v4.1`).
+  - Para volver al widget anterior (una sola cuenta, sin fichas apiladas), pega el archivo de esta dirección en
+    Scriptable: <https://raw.githubusercontent.com/robcas415-user/Caudal/8a9337327660b0e9a3414b0ffe4d2bbae05e7459/scriptable/Caudal-widget.js>
+    (y vuelve a poner `API` y `CLAVE`).
 
 ## 6. Recordatorios
 
