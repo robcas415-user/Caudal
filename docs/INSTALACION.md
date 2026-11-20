@@ -1,12 +1,12 @@
 # Instalación de Caudal (para Robert)
 
 Todo es gratis: Google Sheets guarda los datos, Apps Script es la "API" y manda los
-correos, Netlify sirve la app, y Atajos/Scriptable en el iPhone hacen la captura
-automática y el widget. Tiempo aproximado: 25–30 minutos la primera vez.
+correos, GitHub Pages sirve la app, y Atajos/Scriptable en el iPhone hacen la captura
+rápida y el widget. Tiempo aproximado: 25–30 minutos la primera vez.
 
 ```
-iPhone (Apple Pay) ──Atajo "Transacción"──┐
-iPhone (app Caudal en Netlify) ───────────┼──► Apps Script (web app) ──► Google Sheet
+Atajo "Anotar gasto" (Back Tap / Siri) ───┐
+iPhone (app Caudal en GitHub Pages) ──────┼──► Apps Script (web app) ──► Google Sheet
 Widget Scriptable / Siri ─────────────────┘           │
                                                       └─► correo diario (recordatorios)
 ```
@@ -50,26 +50,20 @@ Widget Scriptable / Siri ─────────────────┘ 
    | `cashback_pct` | 6 (o lo que dé hoy la tarjeta) |
    | `cashback_tope` | tope mensual de cashback en pesos, si lo hay |
    | `categorias_cashback` | categorías que sí dan cashback (ej. `Súper`) |
-   | `monto_periodo`, `periodo_dias` | cuánto y cada cuántos días recibe dinero (opcional) |
    | `avisos_correo` | correos para recordatorios, separados por coma (el de ella y el tuyo) |
    | `limite_credito` | opcional |
 
    El `token` es la clave de la API: no lo cambies a mano a menos que quieras
    "cerrar la puerta" (si lo cambias, hay que volver a mandar el enlace).
 
-## 2. La app en Netlify · ~5 min
+## 2. La app en GitHub Pages · ~5 min
 
-1. Entra a [app.netlify.com](https://app.netlify.com) → **Add new project → Import an existing project → GitHub**.
-2. Autoriza Netlify en GitHub si lo pide y elige el repositorio **caudal**.
-3. Netlify lee `netlify.toml` solo (carpeta `web`). Pulsa **Deploy**.
-4. *Project configuration → Change project name* → por ejemplo `caudal-mama`
-   → la app queda en `https://caudal-mama.netlify.app`.
+1. En GitHub, abre el repositorio **Caudal → Settings → Pages**.
+2. En **Build and deployment → Source** elige **GitHub Actions**.
+3. El flujo `.github/workflows/pages.yml` publica la carpeta `web` cada vez que se
+   sube un cambio a `main` (también se puede lanzar a mano desde **Actions**).
+4. La app queda en `https://robcas415-user.github.io/Caudal/`.
 5. Copia esa dirección en la hoja, pestaña **Config → `url_app`**.
-
-Cada vez que se suba un cambio al repositorio, Netlify vuelve a publicar solo.
-
-> Sin GitHub: también puedes arrastrar la carpeta `web` a
-> [app.netlify.com/drop](https://app.netlify.com/drop).
 
 ## 3. Abrir la app en los iPhones · ~3 min
 
@@ -90,12 +84,11 @@ En la app de tu mamá:
 
 - **Otro → Corregir saldo**: lo que tiene hoy en DiDi débito.
 - **Otro → Deuda anterior**: lo que ya debe la tarjeta (si debe algo).
-- **Recibí dinero** cada vez que le den dinero (marcando "periodo nuevo" si es el gasto
-  normal de la semana/quincena).
+- **Recibí dinero** cada vez que le den dinero.
 
-## 5. Captura automática y widget
+## 5. Atajos y widget
 
-- Atajos del iPhone (compra automática con Apple Pay, Siri, recordatorio diario):
+- Atajos del iPhone (anotar gasto, Siri, recordatorio diario):
   [ATAJOS.md](ATAJOS.md)
 - Widget en la pantalla de inicio: [`scriptable/Caudal-widget.js`](../scriptable/Caudal-widget.js)
   (instrucciones al inicio del archivo; app gratis **Scriptable** del App Store).

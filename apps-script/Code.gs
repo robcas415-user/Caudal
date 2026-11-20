@@ -180,7 +180,7 @@ function onOpen() {
 function mostrarEnlace() {
   var cfg = leerConfigCruda_();
   var api = ScriptApp.getService().getUrl();
-  var app = String(cfg.url_app || 'https://TU-SITIO.netlify.app').replace(/\/+$/, '');
+  var app = String(cfg.url_app || 'https://robcas415-user.github.io/Caudal').replace(/\/+$/, '');
   var enlace = app + '/#api=' + encodeURIComponent(api) + '&clave=' + encodeURIComponent(cfg.token);
   var html = HtmlService.createHtmlOutput(
     '<div style="font:14px sans-serif">' +
