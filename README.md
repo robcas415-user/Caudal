@@ -10,11 +10,11 @@ La cifra principal, siempre a la vista:
 
 Pagar la tarjeta no cambia el Libre: solo mueve dinero que ya estaba apartado.
 La app también muestra cuánto **toca pagar** y **hasta cuándo**, cuánto **deberías ver en
-DiDi débito** (y cuánto de eso es para la tarjeta), el **cashback** del mes y cómo va el
-**periodo** (con lo que sobró del anterior y cuánto alcanza por día).
+DiDi débito** (y cuánto de eso es para la tarjeta) y el **cashback** y los gastos de
+**este mes**.
 
-Todo es configurable (corte, día límite o días para pagar, % y tope de cashback, categorías
-con cashback, monto y frecuencia del dinero recibido, recordatorios): desde la app en
+Todo es configurable (corte, día límite, % y tope de cashback, categorías con cashback,
+aviso de Libre bajo, recordatorios): desde la app en
 *Ajustes* o en la pestaña *Config* de la hoja.
 
 ## Varias cuentas

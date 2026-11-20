@@ -2,10 +2,10 @@
 
 Todo es gratis: Google Sheets guarda los datos, Apps Script es la "API" y manda los
 correos, GitHub Pages sirve la app, y Atajos/Scriptable en el iPhone hacen la captura
-automática y el widget. Tiempo aproximado: 25–30 minutos la primera vez.
+rápida y el widget. Tiempo aproximado: 25–30 minutos la primera vez.
 
 ```
-iPhone (Apple Pay) ──Atajo "Transacción"──┐
+Atajo "Anotar gasto" (Back Tap / Siri) ───┐
 iPhone (app Caudal en GitHub Pages) ──────┼──► Apps Script (web app) ──► Google Sheet
 Widget Scriptable / Siri ─────────────────┘           │
                                                       └─► correo diario (recordatorios)
@@ -50,7 +50,6 @@ Widget Scriptable / Siri ─────────────────┘ 
    | `cashback_pct` | 6 (o lo que dé hoy la tarjeta) |
    | `cashback_tope` | tope mensual de cashback en pesos, si lo hay |
    | `categorias_cashback` | categorías que sí dan cashback (ej. `Súper`) |
-   | `monto_periodo`, `periodo_dias` | cuánto y cada cuántos días recibe dinero (opcional) |
    | `avisos_correo` | correos para recordatorios, separados por coma (el de ella y el tuyo) |
    | `limite_credito` | opcional |
 
@@ -85,12 +84,11 @@ En la app de tu mamá:
 
 - **Otro → Corregir saldo**: lo que tiene hoy en DiDi débito.
 - **Otro → Deuda anterior**: lo que ya debe la tarjeta (si debe algo).
-- **Recibí dinero** cada vez que le den dinero (marcando "periodo nuevo" si es el gasto
-  normal de la semana/quincena).
+- **Recibí dinero** cada vez que le den dinero.
 
-## 5. Captura automática y widget
+## 5. Atajos y widget
 
-- Atajos del iPhone (compra automática con Apple Pay, Siri, recordatorio diario):
+- Atajos del iPhone (anotar gasto, Siri, recordatorio diario):
   [ATAJOS.md](ATAJOS.md)
 - Widget en la pantalla de inicio: [`scriptable/Caudal-widget.js`](../scriptable/Caudal-widget.js)
   (instrucciones al inicio del archivo; app gratis **Scriptable** del App Store).

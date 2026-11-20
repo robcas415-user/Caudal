@@ -13,48 +13,16 @@ Abajo, donde diga `API` y `CLAVE`, pega esos valores. Todo se hace en la app **A
 
 ---
 
-## 1. Compra automática con Apple Pay (la más importante)
+## 1. (Ya no se usa) Compra automática con Apple Pay
 
-Cada vez que tu mamá pague con la DiDi Card desde Apple Wallet, se anota sola y le
-aparece una notificación con lo que le queda libre.
-
-1. Atajos → pestaña **Automatización** → **+** (o *Nueva automatización*).
-2. Elige **Transacción**.
-3. **Tarjeta**: selecciona solo la **DiDi Card de crédito**. Categorías/comercios: todos.
-4. Marca **Ejecutar inmediatamente** (y desactiva "Notificar al ejecutar" si aparece).
-   → **Siguiente** → **Nuevo atajo en blanco**.
-5. Agrega estas acciones en orden:
-
-   1. **Codificar URL** → en el campo de texto toca *Entrada del atajo* → elige
-      **Comercio**. (Renómbrala tocando el resultado: "Comercio codificado".)
-   2. **Codificar URL** → *Entrada del atajo* → **Importe** (o *Cantidad*).
-   3. **Texto**, con exactamente esto (sin espacios ni saltos de línea), insertando las
-      dos variables donde se indica:
-
-      ```
-      API?accion=agregar&token=CLAVE&medio=credito&origen=wallet&formato=texto&comercio=[Comercio codificado]&monto=[resultado del paso 2]
-      ```
-
-   4. **Obtener contenido de la URL** (usa el *Texto*; método GET, el de siempre).
-   5. **Mostrar notificación** → texto: *Contenido de la URL*.
-
-6. **OK / Listo**.
-
-Prueba: paga algo pequeño con Apple Pay; en unos segundos debe llegar la notificación
-"Anotado: $… en … (tarjeta). Te quedan libres $…".
-
-- Las compras automáticas **no mandan categoría**: entran con la categoría por defecto
-  (`categoria_default`, hoy *Súper*) y en la primera cuenta (DiDi). Se puede cambiar tocando el movimiento en la app.
-- Si el iPhone dispara la automatización dos veces, Caudal ignora el duplicado
-  (mismo monto y comercio en menos de 2 minutos).
-- **No** anotes a mano una compra que ya se anotó sola (en la app aparece como
-  "automático").
-- Si también tiene la **DiDi débito** en Wallet, repite todo para esa tarjeta pero con
-  `medio=debito`.
+La DiDi Card no se puede agregar a Apple Wallet, así que la automatización de
+**Transacción** no funciona. Las compras se anotan a mano con el atajo 2 (Back Tap o
+ícono **Anotar**) o desde la app. La API sigue aceptando `origen=wallet` por si algún
+día se usa con otra tarjeta.
 
 ## 2. "Anotar gasto" (a mano o con Siri)
 
-Para compras con tarjeta física, en efectivo desde débito, o si la automática falló.
+Para anotar una compra rápido (con tarjeta o desde débito).
 
 1. Atajos → **+** (nuevo atajo) → nómbralo **Anotar gasto**.
 2. Acciones:
@@ -137,7 +105,7 @@ tiene su propio umbral de aviso (las de solo débito avisan saldo bajo o negativ
 Igual que el atajo 2 pero sin el menú y con:
 
 ```
-API?accion=agregar&token=CLAVE&tipo=deposito&nuevo_periodo=si&origen=atajo&formato=texto&monto=[Entrada proporcionada]
+API?accion=agregar&token=CLAVE&tipo=deposito&origen=atajo&formato=texto&monto=[Entrada proporcionada]
 ```
 
 ---
@@ -156,5 +124,5 @@ API?accion=agregar&token=CLAVE&tipo=deposito&nuevo_periodo=si&origen=atajo&forma
 | `comercio` / `descripcion` | texto libre |
 | `categoria` | una de `categorias` (si no, `categoria_default`) |
 | `fecha` | `AAAA-MM-DD` (si no, hoy) |
-| `nuevo_periodo` | `si` para depósitos que inician periodo |
+| `nuevo_periodo` | ya no se usa (Caudal no maneja periodos) |
 | `origen` | `wallet` activa el filtro de duplicados |
