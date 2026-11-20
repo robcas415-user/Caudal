@@ -1,12 +1,12 @@
 # Instalación de Caudal (para Robert)
 
 Todo es gratis: Google Sheets guarda los datos, Apps Script es la "API" y manda los
-correos, Netlify sirve la app, y Atajos/Scriptable en el iPhone hacen la captura
+correos, GitHub Pages sirve la app, y Atajos/Scriptable en el iPhone hacen la captura
 automática y el widget. Tiempo aproximado: 25–30 minutos la primera vez.
 
 ```
 iPhone (Apple Pay) ──Atajo "Transacción"──┐
-iPhone (app Caudal en Netlify) ───────────┼──► Apps Script (web app) ──► Google Sheet
+iPhone (app Caudal en GitHub Pages) ──────┼──► Apps Script (web app) ──► Google Sheet
 Widget Scriptable / Siri ─────────────────┘           │
                                                       └─► correo diario (recordatorios)
 ```
@@ -57,19 +57,14 @@ Widget Scriptable / Siri ─────────────────┘ 
    El `token` es la clave de la API: no lo cambies a mano a menos que quieras
    "cerrar la puerta" (si lo cambias, hay que volver a mandar el enlace).
 
-## 2. La app en Netlify · ~5 min
+## 2. La app en GitHub Pages · ~5 min
 
-1. Entra a [app.netlify.com](https://app.netlify.com) → **Add new project → Import an existing project → GitHub**.
-2. Autoriza Netlify en GitHub si lo pide y elige el repositorio **caudal**.
-3. Netlify lee `netlify.toml` solo (carpeta `web`). Pulsa **Deploy**.
-4. *Project configuration → Change project name* → por ejemplo `caudal-mama`
-   → la app queda en `https://caudal-mama.netlify.app`.
+1. En GitHub, abre el repositorio **Caudal → Settings → Pages**.
+2. En **Build and deployment → Source** elige **GitHub Actions**.
+3. El flujo `.github/workflows/pages.yml` publica la carpeta `web` cada vez que se
+   sube un cambio a `main` (también se puede lanzar a mano desde **Actions**).
+4. La app queda en `https://robcas415-user.github.io/Caudal/`.
 5. Copia esa dirección en la hoja, pestaña **Config → `url_app`**.
-
-Cada vez que se suba un cambio al repositorio, Netlify vuelve a publicar solo.
-
-> Sin GitHub: también puedes arrastrar la carpeta `web` a
-> [app.netlify.com/drop](https://app.netlify.com/drop).
 
 ## 3. Abrir la app en los iPhones · ~3 min
 
